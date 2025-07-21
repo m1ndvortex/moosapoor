@@ -1,0 +1,622 @@
+<style>
+.accounting-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: 'Tahoma', sans-serif;
+    direction: rtl;
+}
+
+.page-header-enhanced {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 15px;
+    margin-bottom: 30px;
+    text-align: center;
+    box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+}
+
+.page-header-enhanced h1 {
+    margin: 0 0 10px 0;
+    font-size: 2.2em;
+    font-weight: bold;
+}
+
+.page-header-enhanced p {
+    margin: 0;
+    font-size: 1.1em;
+    opacity: 0.9;
+}
+
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.summary-card {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    border: 2px solid #f8f9fa;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.summary-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+.summary-card.purchases {
+    border-color: #b8860b;
+}
+
+.summary-card.payments {
+    border-color: #28a745;
+}
+
+.summary-card.balance {
+    border-color: #17a2b8;
+}
+
+.summary-card.balance.negative {
+    border-color: #dc3545;
+}
+
+.card-icon {
+    font-size: 3em;
+    margin-bottom: 15px;
+}
+
+.card-title {
+    font-size: 1.1em;
+    color: #6c757d;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.card-amount {
+    font-size: 1.8em;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.card-amount.negative {
+    color: #dc3545;
+}
+
+.card-amount.positive {
+    color: #28a745;
+}
+
+.card-amount.neutral {
+    color: #17a2b8;
+}
+
+.customer-info-brief {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 30px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.customer-details h3 {
+    margin: 0 0 5px 0;
+    color: #2c2c2c;
+}
+
+.customer-details p {
+    margin: 0;
+    color: #6c757d;
+}
+
+.actions-brief {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.action-btn-small {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9em;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-view {
+    background: #17a2b8;
+    color: white;
+}
+
+.btn-edit {
+    background: #ffc107;
+    color: #2c2c2c;
+}
+
+.btn-invoice {
+    background: #b8860b;
+    color: white;
+}
+
+.btn-back {
+    background: #6c757d;
+    color: white;
+}
+
+.action-btn-small:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.transactions-section {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 30px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #f8f9fa;
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.3em;
+    color: #2c2c2c;
+    margin: 0;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px;
+    text-align: center;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.data-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #2c2c2c;
+    font-size: 0.95em;
+}
+
+.data-table tr:hover {
+    background: #f8f9fa;
+}
+
+.transaction-type {
+    padding: 4px 8px;
+    border-radius: 15px;
+    font-size: 0.8em;
+    font-weight: 600;
+}
+
+.type-sale {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.type-payment {
+    background: #d4edda;
+    color: #155724;
+}
+
+.type-refund {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.amount-positive {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.amount-negative {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.no-data {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+    font-style: italic;
+    font-size: 1.1em;
+}
+
+.invoices-section {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.invoice-status {
+    padding: 4px 8px;
+    border-radius: 15px;
+    font-size: 0.8em;
+    font-weight: 600;
+}
+
+.status-paid {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-partial {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-unpaid {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+@media (max-width: 768px) {
+    .summary-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .customer-info-brief {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .actions-brief {
+        justify-content: center;
+    }
+    
+    .data-table {
+        font-size: 0.85em;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 8px 4px;
+    }
+}
+</style>
+
+<div class="accounting-container">
+    <div class="page-header-enhanced">
+        <h1>💰 حساب مالی مشتری</h1>
+        <p>تراکنش‌ها و تاریخچه مالی</p>
+    </div>
+
+    <!-- اطلاعات مختصر مشتری -->
+    <div class="customer-info-brief">
+        <div class="customer-details">
+            <h3>👤 <%= customer.full_name %></h3>
+            <p>کد مشتری: <%= customer.customer_code %> | 
+               <% if (customer.phone) { %>تلفن: <%= customer.phone %><% } %>
+            </p>
+        </div>
+        <div class="actions-brief">
+            <a href="/customers/view/<%= customer.id %>" class="action-btn-small btn-view">
+                👁️ مشاهده جزئیات
+            </a>
+            <a href="/customers/edit/<%= customer.id %>" class="action-btn-small btn-edit">
+                ✏️ ویرایش
+            </a>
+            <a href="/sales/new?customer_id=<%= customer.id %>" class="action-btn-small btn-invoice">
+                🧾 فاکتور جدید
+            </a>
+            <a href="/customers" class="action-btn-small btn-back">
+                🔙 بازگشت
+            </a>
+        </div>
+    </div>
+
+    <!-- خلاصه مالی -->
+    <div class="summary-cards">
+        <div class="summary-card purchases">
+            <div class="card-icon">🛒</div>
+            <div class="card-title">کل خریدها</div>
+            <div class="card-amount neutral">
+                <%= Number(summary.totalPurchases).toLocaleString('fa-IR') %> ریال
+            </div>
+        </div>
+        
+        <div class="summary-card payments">
+            <div class="card-icon">💳</div>
+            <div class="card-title">کل پرداخت‌ها</div>
+            <div class="card-amount positive">
+                <%= Number(summary.totalPayments).toLocaleString('fa-IR') %> ریال
+            </div>
+        </div>
+        
+        <div class="summary-card balance <%= summary.currentBalance < 0 ? 'negative' : '' %>">
+            <div class="card-icon">
+                <%= summary.currentBalance >= 0 ? '💰' : '⚠️' %>
+            </div>
+            <div class="card-title">موجودی حساب</div>
+            <div class="card-amount <%= summary.currentBalance >= 0 ? 'positive' : 'negative' %>">
+                <%= Number(summary.currentBalance).toLocaleString('fa-IR') %> ریال
+            </div>
+            <% if (summary.currentBalance < 0) { %>
+                <div style="color: #dc3545; font-size: 0.9em;">بدهکار</div>
+            <% } else if (summary.currentBalance > 0) { %>
+                <div style="color: #28a745; font-size: 0.9em;">طلبکار</div>
+            <% } else { %>
+                <div style="color: #6c757d; font-size: 0.9em;">تسویه</div>
+            <% } %>
+        </div>
+    </div>
+
+    <!-- تراکنش‌های مالی -->
+    <div class="transactions-section">
+        <div class="section-header">
+            <h3 class="section-title">
+                <span>📊</span>
+                تاریخچه تراکنش‌ها
+            </h3>
+            <span style="color: #6c757d; font-size: 0.9em;">
+                <%= transactions.length %> تراکنش
+            </span>
+        </div>
+        
+        <% if (transactions && transactions.length > 0) { %>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>تاریخ</th>
+                    <th>نوع تراکنش</th>
+                    <th>شرح</th>
+                    <th>مبلغ</th>
+                    <th>شماره فاکتور</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% transactions.forEach(transaction => { %>
+                <tr>
+                    <td><%= transaction.formatted_date %></td>
+                    <td>
+                        <span class="transaction-type type-<%= transaction.transaction_type %>">
+                            <%= transaction.transaction_type === 'sale' ? '🛒 فروش' : 
+                                transaction.transaction_type === 'payment' ? '💳 پرداخت' :
+                                transaction.transaction_type === 'refund' ? '↩️ بازگشت' : transaction.transaction_type %>
+                        </span>
+                    </td>
+                    <td><%= transaction.description || '-' %></td>
+                    <td>
+                        <span class="<%= transaction.transaction_type === 'payment' || transaction.transaction_type === 'refund' ? 'amount-negative' : 'amount-positive' %>">
+                            <%= transaction.transaction_type === 'payment' || transaction.transaction_type === 'refund' ? '-' : '+' %>
+                            <%= Number(transaction.amount).toLocaleString('fa-IR') %> ریال
+                        </span>
+                    </td>
+                    <td>
+                        <% if (transaction.invoice_number) { %>
+                            <a href="/sales/view/<%= transaction.related_invoice_id %>" style="color: #007bff;">
+                                <%= transaction.invoice_number %>
+                            </a>
+                        <% } else { %>
+                            -
+                        <% } %>
+                    </td>
+                </tr>
+                <% }); %>
+            </tbody>
+        </table>
+        <% } else { %>
+        <div class="no-data">
+            📊 هنوز تراکنش مالی ثبت نشده است
+        </div>
+        <% } %>
+    </div>
+
+    <!-- فاکتورها -->
+    <div class="invoices-section">
+        <div class="section-header">
+            <h3 class="section-title">
+                <span>🧾</span>
+                فاکتورها
+            </h3>
+            <span style="color: #6c757d; font-size: 0.9em;">
+                <%= invoices.length %> فاکتور
+            </span>
+        </div>
+        
+        <% if (invoices && invoices.length > 0) { %>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>شماره فاکتور</th>
+                    <th>تاریخ</th>
+                    <th>مبلغ کل</th>
+                    <th>باقیمانده</th>
+                    <th>وضعیت</th>
+                    <th>عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% invoices.forEach(invoice => { %>
+                <tr>
+                    <td>
+                        <a href="/sales/view/<%= invoice.id %>" style="color: #007bff; font-weight: 600;">
+                            <%= invoice.invoice_number %>
+                        </a>
+                    </td>
+                    <td><%= invoice.formatted_date %></td>
+                    <td>
+                        <span class="amount-positive">
+                            <%= Number(invoice.grand_total).toLocaleString('fa-IR') %> ریال
+                        </span>
+                    </td>
+                    <td>
+                        <span class="<%= Number(invoice.remaining_amount) > 0 ? 'amount-negative' : 'amount-positive' %>">
+                            <%= Number(invoice.remaining_amount).toLocaleString('fa-IR') %> ریال
+                        </span>
+                    </td>
+                    <td>
+                        <% 
+                        const remaining = Number(invoice.remaining_amount);
+                        let statusClass, statusText;
+                        if (remaining <= 0) {
+                            statusClass = 'status-paid';
+                            statusText = '✅ پرداخت شده';
+                        } else if (remaining < Number(invoice.grand_total)) {
+                            statusClass = 'status-partial';
+                            statusText = '⏳ پرداخت جزئی';
+                        } else {
+                            statusClass = 'status-unpaid';
+                            statusText = '❌ پرداخت نشده';
+                        }
+                        %>
+                        <span class="invoice-status <%= statusClass %>">
+                            <%= statusText %>
+                        </span>
+                    </td>
+                    <td>
+                        <% if (Number(invoice.remaining_amount) > 0) { %>
+                            <button class="action-btn-small" style="background: #28a745; color: white; border: none;" 
+                                    onclick="recordPayment('<%= invoice.id %>', '<%= invoice.invoice_number %>', <%= invoice.remaining_amount %>)">
+                                💳 ثبت پرداخت
+                            </button>
+                        <% } else { %>
+                            <span style="color: #28a745; font-size: 0.8em;">✅ تسویه شده</span>
+                        <% } %>
+                    </td>
+                </tr>
+                <% }); %>
+            </tbody>
+        </table>
+        <% } else { %>
+        <div class="no-data">
+            🧾 هنوز فاکتوری صادر نشده است
+        </div>
+        <% } %>
+    </div>
+</div>
+
+<script>
+// Function to convert Persian numbers to English
+function persianToEnglish(str) {
+    const persianNumbers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    const englishNumbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    
+    let result = str.toString();
+    for (let i = 0; i < persianNumbers.length; i++) {
+        result = result.replace(new RegExp(persianNumbers[i], 'g'), englishNumbers[i]);
+    }
+    return result;
+}
+
+function recordPayment(invoiceId, invoiceNumber, remainingAmount) {
+    const amount = prompt(`ثبت پرداخت برای فاکتور ${invoiceNumber}\n\nمبلغ باقیمانده: ${Number(remainingAmount).toLocaleString('fa-IR')} ریال\n\nمبلغ پرداخت را وارد کنید (ریال):`, remainingAmount);
+    
+    if (amount) {
+        // Convert Persian numbers to English
+        const englishAmount = persianToEnglish(amount.replace(/,/g, ''));
+        
+        if (!isNaN(englishAmount) && Number(englishAmount) > 0) {
+        // ارسال درخواست ثبت پرداخت
+        fetch('/accounting/add-payment', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                invoice_id: invoiceId,
+                customer_id: '<%= customer.id %>',
+                amount: Number(englishAmount),
+                payment_method: 'cash',
+                payment_date: new Date().toISOString().split('T')[0],
+                description: `پرداخت فاکتور ${invoiceNumber}`
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ پرداخت با موفقیت ثبت شد');
+                location.reload();
+            } else {
+                alert('❌ خطا در ثبت پرداخت: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ خطا در ثبت پرداخت');
+        });
+        } else {
+            alert('لطفاً مبلغ معتبری وارد کنید');
+        }
+    }
+}
+
+// Convert Gregorian dates to Persian for old records
+function convertGregorianToPersian() {
+    const shamsiElements = document.querySelectorAll('.shamsi-date');
+    
+    shamsiElements.forEach(function(element) {
+        const gregorianDate = element.getAttribute('data-gregorian');
+        if (gregorianDate && typeof moment !== 'undefined') {
+            try {
+                // Use moment-jalaali to convert to Persian date
+                const persianDate = moment(gregorianDate).format('jYYYY/jMM/jDD');
+                element.textContent = persianDate;
+                element.style.color = '#007bff'; // Blue color to indicate converted date
+                element.title = 'تاریخ تبدیل شده از میلادی: ' + gregorianDate;
+            } catch (error) {
+                console.error('Error converting date:', error);
+                // Fallback to simple conversion
+                const date = new Date(gregorianDate);
+                const persianDate = convertToSimplePersian(date);
+                if (persianDate) {
+                    element.textContent = persianDate;
+                    element.style.color = '#28a745'; // Green color for simple conversion
+                }
+            }
+        }
+    });
+}
+
+// Simple Persian date conversion fallback
+function convertToSimplePersian(date) {
+    try {
+        // Simple approximation - not accurate but better than Gregorian
+        const year = date.getFullYear() - 621;
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}/${month}/${day}`;
+    } catch (error) {
+        return null;
+    }
+}
+
+// Initialize date conversion on page load
+document.addEventListener('DOMContentLoaded', function() {
+    convertGregorianToPersian();
+});
+</script> 

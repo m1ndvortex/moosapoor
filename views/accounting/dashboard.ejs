@@ -1,0 +1,349 @@
+<style>
+.accounting-container {
+    direction: rtl;
+    text-align: right;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 25px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 4px;
+    background: linear-gradient(270deg, #ffd700, #ffb300);
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.stat-number {
+    font-size: 28px;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 8px;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #7f8c8d;
+    font-weight: 500;
+}
+
+.stat-icon {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    font-size: 24px;
+}
+
+.card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    margin-bottom: 25px;
+    overflow: hidden;
+}
+
+.card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px 25px;
+    font-weight: 600;
+    font-size: 18px;
+}
+
+.card-body {
+    padding: 25px;
+}
+
+.btn {
+    border-radius: 10px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: none;
+    padding: 12px 20px;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.table {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.table th {
+    background: #f8f9fa;
+    border: none;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.table td {
+    border: none;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+}
+
+.text-left {
+    text-align: left !important;
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+    }
+    
+    .card-body {
+        padding: 20px;
+    }
+}
+</style>
+
+<div class="accounting-container">
+    <div class="page-header">
+        <h1 class="page-title">حسابداری حرفه‌ای</h1>
+        <p>سیستم حسابداری کامل طلافروشی موسی پور</p>
+    </div>
+
+<!-- Financial Statistics Grid -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-number"><%= formatNumber(summary.totalSales) %></div>
+        <div class="stat-label">کل فروش (ریال)</div>
+        <div class="stat-icon" style="color: #28a745;">📈</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-number"><%= formatNumber(summary.totalPayments) %></div>
+        <div class="stat-label">کل پرداخت‌ها (ریال)</div>
+        <div class="stat-icon" style="color: #17a2b8;">💰</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-number"><%= formatNumber(summary.customerBalances) %></div>
+        <div class="stat-label">مانده مشتریان (ریال)</div>
+        <div class="stat-icon" style="color: #ffc107;">📊</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-number"><%= formatNumber(summary.todayTransactions) %></div>
+        <div class="stat-label">تراکنش‌های امروز</div>
+        <div class="stat-icon" style="color: #6f42c1;">📋</div>
+    </div>
+</div>
+
+<!-- Professional Accounting Menu -->
+<div class="card">
+    <div class="card-header">
+        <strong>سیستم حسابداری حرفه‌ای</strong>
+    </div>
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+            
+            <!-- Core Accounting -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-right: 4px solid #007bff;">
+                <h5 style="color: #007bff; margin-bottom: 15px;">🏦 حسابداری اصلی</h5>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <a href="/accounting/chart-of-accounts" class="btn btn-outline-primary btn-sm">
+                        <strong>بهار حساب‌ها</strong><br>
+                        <small>مدیریت نمودار حساب‌ها</small>
+                    </a>
+                    <a href="/accounting/journal-entries" class="btn btn-outline-primary btn-sm">
+                        <strong>دفتر روزنامه</strong><br>
+                        <small>مشاهده کلیه قیود</small>
+                    </a>
+                    <a href="/accounting/general-ledger" class="btn btn-outline-primary btn-sm">
+                        <strong>دفتر کل</strong><br>
+                        <small>تراکنش‌های مالی</small>
+                    </a>
+                    <a href="/accounting/trial-balance" class="btn btn-outline-primary btn-sm">
+                        <strong>تراز آزمایشی</strong><br>
+                        <small>تراز حساب‌ها</small>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Cash & Bank Management -->
+            <div style="background: #e8f5e8; padding: 20px; border-radius: 8px; border-right: 4px solid #28a745;">
+                <h5 style="color: #28a745; margin-bottom: 15px;">💳 مدیریت نقدینگی</h5>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <a href="/accounting/bank-accounts" class="btn btn-outline-success btn-sm">
+                        <strong>حساب‌های بانکی</strong><br>
+                        <small>مدیریت حساب‌های بانک</small>
+                    </a>
+                    <a href="/accounting/manual-transaction" class="btn btn-outline-success btn-sm">
+                        <strong>ثبت تراکنش دستی</strong><br>
+                        <small>قید دستی حسابداری</small>
+                    </a>
+                    <a href="/accounting/customer-accounts" class="btn btn-outline-success btn-sm">
+                        <strong>حساب تفصیلی مشتریان</strong><br>
+                        <small>وضعیت مالی مشتریان</small>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Expense Management -->
+            <div style="background: #fff3e0; padding: 20px; border-radius: 8px; border-right: 4px solid #ff9800;">
+                <h5 style="color: #ff9800; margin-bottom: 15px;">💸 مدیریت هزینه‌ها</h5>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <a href="/accounting/expenses" class="btn btn-outline-warning btn-sm">
+                        <strong>مدیریت هزینه‌ها</strong><br>
+                        <small>ثبت و کنترل هزینه‌ها</small>
+                    </a>
+                    <a href="/accounting/expenses?status=pending" class="btn btn-outline-warning btn-sm">
+                        <strong>هزینه‌های در انتظار</strong><br>
+                        <small>تأیید هزینه‌ها</small>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Financial Reports -->
+            <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; border-right: 4px solid #2196f3;">
+                <h5 style="color: #2196f3; margin-bottom: 15px;">📊 گزارشات مالی</h5>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <a href="/accounting/financial-reports" class="btn btn-outline-info btn-sm">
+                        <strong>گزارشات پیشرفته</strong><br>
+                        <small>سود و زیان، ترازنامه</small>
+                    </a>
+                    <a href="/accounting/reports" class="btn btn-outline-info btn-sm">
+                        <strong>گزارشات عملیاتی</strong><br>
+                        <small>آمار فروش و پرداخت</small>
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Today's Financial Activity -->
+<div class="card">
+    <div class="card-header">
+        فعالیت مالی امروز
+    </div>
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            <div style="text-align: center; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                <h4 style="color: #28a745; margin: 0;">
+                    <%= formatNumber(summary.todayAmount) %> ریال
+                </h4>
+                <p style="margin: 5px 0 0 0; color: #666;">
+                    مجموع تراکنش‌های امروز
+                </p>
+            </div>
+            <div style="text-align: center; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                <h4 style="color: #17a2b8; margin: 0;">
+                    <%= formatNumber(summary.todayTransactions) %> عدد
+                </h4>
+                <p style="margin: 5px 0 0 0; color: #666;">
+                    تعداد تراکنش‌های امروز
+                </p>
+            </div>
+            <div style="text-align: center; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                <h4 style="color: #dc3545; margin: 0;">
+                    <%= formatNumber(summary.customerBalances) %> ریال
+                </h4>
+                <p style="margin: 5px 0 0 0; color: #666;">
+                    مانده کل مشتریان
+                </p>
+            </div>
+            <div style="text-align: center; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                <h4 style="color: #6f42c1; margin: 0;">
+                    <%= formatNumber(summary.totalPayments) %> ریال
+                </h4>
+                <p style="margin: 5px 0 0 0; color: #666;">
+                    کل دریافت‌ها
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Financial Status Overview -->
+<div class="card">
+    <div class="card-header">
+        خلاصه وضعیت مالی
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <tbody>
+                    <tr>
+                        <td><strong>کل فروش</strong></td>
+                        <td class="text-left"><%= formatNumber(summary.totalSales) %> ریال</td>
+                        <td class="text-center" style="color: #28a745;">✓</td>
+                    </tr>
+                    <tr>
+                        <td><strong>کل دریافت‌ها</strong></td>
+                        <td class="text-left"><%= formatNumber(summary.totalPayments) %> ریال</td>
+                        <td class="text-center" style="color: #28a745;">✓</td>
+                    </tr>
+                    <tr>
+                        <td><strong>مانده کل مشتریان</strong></td>
+                        <td class="text-left"><%= formatNumber(summary.customerBalances) %> ریال</td>
+                        <td class="text-center" style="color: <%= summary.customerBalances > 0 ? '#ffc107' : '#28a745' %>;">
+                            <%= summary.customerBalances > 0 ? '⚠' : '✓' %>
+                        </td>
+                    </tr>
+                    <tr style="background: #f8f9fa; font-weight: bold;">
+                        <td><strong>موجودی نقدی (تخمینی)</strong></td>
+                        <td class="text-left">
+                            <%= formatNumber(summary.totalPayments) %> ریال
+                        </td>
+                        <td class="text-center" style="color: #17a2b8;">💰</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div style="margin-top: 15px; padding: 15px; background: #d4edda; border-radius: 8px; border-right: 4px solid #28a745;">
+            <p style="margin: 0; color: #155724;">
+                <strong>سیستم حسابداری حرفه‌ای:</strong> تمامی تراکنش‌های فروش، خرید و پرداخت به صورت خودکار در سیستم حسابداری ثبت می‌شوند.
+            </p>
+        </div>
+    </div>
+</div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card">
+    <div class="card-header">
+        عملیات سریع
+    </div>
+    <div class="card-body">
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <a href="/sales/new" class="btn btn-success">فاکتور جدید</a>
+            <a href="/accounting/manual-transaction" class="btn btn-primary">قید دستی</a>
+            <a href="/accounting/expenses" class="btn btn-warning">ثبت هزینه</a>
+            <a href="/accounting/trial-balance" class="btn btn-info">تراز آزمایشی</a>
+            <a href="/accounting/financial-reports" class="btn btn-secondary">گزارشات مالی</a>
+        </div>
+    </div>
+</div> 
