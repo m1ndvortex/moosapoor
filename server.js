@@ -916,6 +916,39 @@ app.post('/sales/create', requireAuth, async (req, res) => {
             invoice_date
         ]);
         
+        // Update gold inventory for sales invoice
+        // Get current gold inventory
+        const [currentInventory] = await connection.execute(`
+            SELECT current_weight FROM gold_inventory
+            ORDER BY transaction_date DESC LIMIT 1
+        `);
+        
+        let currentWeight = 0;
+        if (currentInventory.length > 0) {
+            currentWeight = parseFloat(currentInventory[0].current_weight);
+        } else {
+            // Check if we have initial setting
+            const [settings] = await connection.execute('SELECT setting_value FROM system_settings WHERE setting_key = "gold_inventory_initial"');
+            if (settings.length > 0) {
+                currentWeight = parseFloat(settings[0].setting_value);
+            }
+        }
+        
+        // Calculate new weight (subtract finalWeight for sales)
+        const newWeight = currentWeight - parseFloat(finalWeight);
+        
+        // Insert gold inventory transaction
+        await connection.execute(`
+            INSERT INTO gold_inventory (
+                transaction_date, transaction_date_shamsi, transaction_type, 
+                reference_id, weight_change, current_weight, description
+            ) VALUES (?, ?, 'sale', ?, ?, ?, ?)
+        `, [
+            invoice_date, invoice_date_shamsi, invoiceId, 
+            -parseFloat(finalWeight), newWeight, 
+            `فروش طلا - فاکتور شماره ${invoice_number}`
+        ]);
+        
         await connection.commit();
         res.redirect(`/sales/view/${invoiceId}?success=فاکتور با موفقیت ایجاد شد`);
         
@@ -1106,6 +1139,39 @@ app.post('/sales/create-purchase', requireAuth, async (req, res) => {
             customer_id,
             invoiceId,
             invoice_date
+        ]);
+        
+        // Update gold inventory for purchase invoice
+        // Get current gold inventory
+        const [currentInventory] = await connection.execute(`
+            SELECT current_weight FROM gold_inventory
+            ORDER BY transaction_date DESC LIMIT 1
+        `);
+        
+        let currentWeight = 0;
+        if (currentInventory.length > 0) {
+            currentWeight = parseFloat(currentInventory[0].current_weight);
+        } else {
+            // Check if we have initial setting
+            const [settings] = await connection.execute('SELECT setting_value FROM system_settings WHERE setting_key = "gold_inventory_initial"');
+            if (settings.length > 0) {
+                currentWeight = parseFloat(settings[0].setting_value);
+            }
+        }
+        
+        // Calculate new weight (add finalWeight for purchases)
+        const newWeight = currentWeight + parseFloat(finalWeight);
+        
+        // Insert gold inventory transaction
+        await connection.execute(`
+            INSERT INTO gold_inventory (
+                transaction_date, transaction_date_shamsi, transaction_type, 
+                reference_id, weight_change, current_weight, description
+            ) VALUES (?, ?, 'purchase', ?, ?, ?, ?)
+        `, [
+            invoice_date, invoice_date_shamsi, invoiceId, 
+            parseFloat(finalWeight), newWeight, 
+            `خرید طلا - فاکتور شماره ${invoice_number}`
         ]);
         
         await connection.commit();
@@ -2987,6 +3053,175 @@ app.get('/accounting/bank-transactions', requireAuth, async (req, res) => {
     }
 });
 
+// Gold Inventory Management
+app.get('/accounting/gold-inventory', requireAuth, async (req, res) => {
+    try {
+        let currentWeight = 0;
+        let todayChange = 0;
+        let weekChange = 0;
+        let monthChange = 0;
+        let transactions = [];
+        
+        try {
+            // Check if tables exist first
+            const [tableCheck] = await db.execute("SHOW TABLES LIKE 'gold_inventory'");
+            const [settingsTableCheck] = await db.execute("SHOW TABLES LIKE 'system_settings'");
+            
+            if (tableCheck.length === 0 || settingsTableCheck.length === 0) {
+                // Tables don't exist, show setup message
+                return res.render('accounting/gold-inventory', {
+                    title: 'مدیریت موجودی طلا',
+                    user: req.session.user,
+                    currentWeight: 0,
+                    todayChange: 0,
+                    weekChange: 0,
+                    monthChange: 0,
+                    transactions: [],
+                    setupRequired: true
+                });
+            }
+            
+            // Get current inventory
+            const [settings] = await db.execute('SELECT setting_value FROM system_settings WHERE setting_key = "gold_inventory_initial"');
+            
+            if (settings.length === 0) {
+                // Initialize settings if not exists
+                await db.execute('INSERT INTO system_settings (setting_key, setting_value) VALUES ("gold_inventory_initial", "0")');
+            } else {
+                currentWeight = parseFloat(settings[0].setting_value) || 0;
+            }
+            
+            // Get all transactions
+            const [transactionResults] = await db.execute(`
+                SELECT * FROM gold_inventory
+                ORDER BY transaction_date DESC
+            `);
+            transactions = transactionResults || [];
+            
+            // If there are transactions, use the most recent current_weight
+            if (transactions.length > 0) {
+                currentWeight = parseFloat(transactions[0].current_weight) || 0;
+            }
+            
+            // Calculate today's change
+            const today = new Date();
+            const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            
+            const [todayResult] = await db.execute(`
+                SELECT SUM(weight_change) as total_change
+                FROM gold_inventory
+                WHERE DATE(transaction_date) = DATE(?)
+            `, [todayStart]);
+            todayChange = parseFloat(todayResult[0]?.total_change) || 0;
+            
+            // Calculate week's change (last 7 days including today)
+            const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6);
+            
+            const [weekResult] = await db.execute(`
+                SELECT SUM(weight_change) as total_change
+                FROM gold_inventory
+                WHERE DATE(transaction_date) >= DATE(?)
+            `, [weekStart]);
+            weekChange = parseFloat(weekResult[0]?.total_change) || 0;
+            
+            // Calculate month's change (last 30 days including today)
+            const monthStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 29);
+            
+            const [monthResult] = await db.execute(`
+                SELECT SUM(weight_change) as total_change
+                FROM gold_inventory
+                WHERE DATE(transaction_date) >= DATE(?)
+            `, [monthStart]);
+            monthChange = parseFloat(monthResult[0]?.total_change) || 0;
+            
+        } catch (dbError) {
+            console.log('Database tables not ready:', dbError.message);
+            // Continue with default values
+        }
+        
+        res.render('accounting/gold-inventory', {
+            title: 'مدیریت موجودی طلا',
+            user: req.session.user,
+            currentWeight: currentWeight || 0,
+            todayChange: todayChange || 0,
+            weekChange: weekChange || 0,
+            monthChange: monthChange || 0,
+            transactions: transactions || []
+        });
+    } catch (error) {
+        console.error('Error fetching gold inventory:', error);
+        res.status(500).send('خطا در دریافت اطلاعات موجودی طلا');
+    }
+});
+
+// Adjust gold inventory
+app.post('/accounting/gold-inventory/adjust', requireAuth, async (req, res) => {
+    try {
+        const { adjustment_type, weight, description } = req.body;
+        const weightValue = parseFloat(weight);
+        
+        // Get current inventory
+        const [currentResult] = await db.execute(`
+            SELECT current_weight FROM gold_inventory
+            ORDER BY transaction_date DESC LIMIT 1
+        `);
+        
+        let currentWeight = 0;
+        if (currentResult.length > 0) {
+            currentWeight = parseFloat(currentResult[0].current_weight);
+        } else {
+            // Check if we have initial setting
+            const [settings] = await db.execute('SELECT setting_value FROM system_settings WHERE setting_key = "gold_inventory_initial"');
+            if (settings.length > 0) {
+                currentWeight = parseFloat(settings[0].setting_value);
+            }
+        }
+        
+        let newWeight = currentWeight;
+        let weightChange = 0;
+        
+        // Calculate new weight based on adjustment type
+        if (adjustment_type === 'set') {
+            weightChange = weightValue - currentWeight;
+            newWeight = weightValue;
+        } else if (adjustment_type === 'add') {
+            weightChange = weightValue;
+            newWeight = currentWeight + weightValue;
+        } else if (adjustment_type === 'subtract') {
+            weightChange = -weightValue;
+            newWeight = currentWeight - weightValue;
+        }
+        
+        // Get current date in Shamsi format
+        const today = new Date();
+        const shamsiDate = new Intl.DateTimeFormat('fa-IR', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(today).replace(/\//g, '/');
+        
+        // Insert transaction
+        await db.execute(`
+            INSERT INTO gold_inventory (
+                transaction_date, transaction_date_shamsi, transaction_type, 
+                weight_change, current_weight, description
+            ) VALUES (?, ?, 'adjustment', ?, ?, ?)
+        `, [today, shamsiDate, weightChange, newWeight, description]);
+        
+        // Update initial setting
+        await db.execute(`
+            UPDATE system_settings 
+            SET setting_value = ? 
+            WHERE setting_key = 'gold_inventory_initial'
+        `, [newWeight.toString()]);
+        
+        res.redirect('/accounting/gold-inventory');
+    } catch (error) {
+        console.error('Error adjusting gold inventory:', error);
+        res.status(500).send('خطا در تنظیم موجودی طلا');
+    }
+});
+
 // Expense Management
 app.get('/accounting/expenses', requireAuth, async (req, res) => {
     try {
@@ -3866,15 +4101,17 @@ app.get('/accounting/financial-reports', requireAuth, async (req, res) => {
     }
 });
 
-// ===== BACKUP SYSTEM ROUTES =====
+// ===== SECURE BACKUP SYSTEM ROUTES =====
 
 // Backup page
 app.get('/backup', requireAuth, async (req, res) => {
     try {
-        // Get backup history
+        // Get backup history with user info
         const [backups] = await db.execute(`
-            SELECT * FROM backup_history 
-            ORDER BY created_at DESC 
+            SELECT bh.*, u.full_name as created_by_name
+            FROM backup_history bh
+            LEFT JOIN users u ON bh.created_by = u.id
+            ORDER BY bh.created_at DESC 
             LIMIT 50
         `);
         
@@ -3882,18 +4119,20 @@ app.get('/backup', requireAuth, async (req, res) => {
         const [settings] = await db.execute(`
             SELECT setting_key, setting_value 
             FROM system_settings 
-            WHERE setting_key IN ('auto_backup_enabled', 'backup_retention_days')
+            WHERE setting_key IN ('auto_backup_enabled', 'backup_retention_days', 'max_backup_files')
         `);
         
         const autoBackupEnabled = settings.find(s => s.setting_key === 'auto_backup_enabled')?.setting_value === 'true';
         const lastBackup = backups[0] || null;
+        const maxBackupFiles = parseInt(settings.find(s => s.setting_key === 'max_backup_files')?.setting_value || '10');
         
         res.render('backup', {
             title: 'مدیریت بک‌آپ',
             user: req.session.user,
             backups: backups,
             lastBackup: lastBackup,
-            autoBackupEnabled: autoBackupEnabled
+            autoBackupEnabled: autoBackupEnabled,
+            maxBackupFiles: maxBackupFiles
         });
     } catch (error) {
         console.error('Backup page error:', error);
@@ -3901,15 +4140,16 @@ app.get('/backup', requireAuth, async (req, res) => {
     }
 });
 
-// Create backup
+// Create secure backup
 app.post('/backup/create', requireAuth, async (req, res) => {
     const connection = await db.getConnection();
     try {
         await connection.beginTransaction();
         
-        const { type = 'full', tables = [] } = req.body;
+        const { type = 'full', description = '' } = req.body;
         const fs = require('fs');
         const path = require('path');
+        const crypto = require('crypto');
         
         // Create backup directory if it doesn't exist
         const backupDir = path.join(__dirname, 'backups');
@@ -3917,75 +4157,139 @@ app.post('/backup/create', requireAuth, async (req, res) => {
             fs.mkdirSync(backupDir, { recursive: true });
         }
         
-        // Generate backup filename
+        // Generate secure backup filename with timestamp
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `backup_${type}_${timestamp}.sql`;
+        const randomId = crypto.randomBytes(4).toString('hex');
+        const filename = `backup_${type}_${timestamp}_${randomId}.sql`;
         const filepath = path.join(backupDir, filename);
         
         // Start backup process
-        const backupId = Date.now();
-        await connection.execute(`
-            INSERT INTO backup_history (id, filename, backup_type, status, created_by)
-            VALUES (?, ?, ?, 'processing', ?)
-        `, [backupId, filename, type, req.session.user.id]);
+        const backupId = Date.now() + Math.floor(Math.random() * 1000);
         
-        let sqlContent = '-- Gold Shop Management System Backup\n';
+        // Insert backup record with description
+        await connection.execute(`
+            INSERT INTO backup_history (id, filename, backup_type, status, created_by, description)
+            VALUES (?, ?, ?, 'processing', ?, ?)
+        `, [backupId, filename, type, req.session.user.id, description || '']);
+        
+        // Get all existing tables in the database
+        const [allTables] = await connection.execute(`
+            SELECT TABLE_NAME 
+            FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_SCHEMA = DATABASE() 
+            AND TABLE_TYPE = 'BASE TABLE'
+            ORDER BY TABLE_NAME
+        `);
+        
+        const existingTables = allTables.map(t => t.TABLE_NAME);
+        
+        let sqlContent = '-- Gold Shop Management System - Secure Backup\n';
         sqlContent += `-- Created: ${new Date().toLocaleString('fa-IR')}\n`;
-        sqlContent += `-- Type: ${type}\n\n`;
+        sqlContent += `-- Type: ${type}\n`;
+        sqlContent += `-- Description: ${description}\n`;
+        sqlContent += `-- User: ${req.session.user.full_name}\n`;
+        sqlContent += `-- Database: ${process.env.DB_NAME || 'gold_shop_db'}\n\n`;
+        
+        sqlContent += 'SET FOREIGN_KEY_CHECKS = 0;\n';
+        sqlContent += 'SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";\n';
+        sqlContent += 'SET AUTOCOMMIT = 0;\n';
+        sqlContent += 'START TRANSACTION;\n\n';
         
         if (type === 'full' || type === 'schema') {
-            // Export table structures
-            const tablesToBackup = tables.length > 0 ? tables : [
-                'customers', 'products', 'categories', 'sales', 'sale_items',
-                'transactions', 'chart_of_accounts', 'bank_accounts', 'users'
-            ];
+            sqlContent += '-- ========================================\n';
+            sqlContent += '-- TABLE STRUCTURES\n';
+            sqlContent += '-- ========================================\n\n';
             
-            for (const table of tablesToBackup) {
+            for (const tableName of existingTables) {
                 try {
-                    const [structure] = await connection.execute(`SHOW CREATE TABLE ${table}`);
-                    sqlContent += `-- Table: ${table}\n`;
-                    sqlContent += `DROP TABLE IF EXISTS \`${table}\`;\n`;
-                    sqlContent += structure[0]['Create Table'] + ';\n\n';
+                    const [structure] = await connection.execute(`SHOW CREATE TABLE \`${tableName}\``);
+                    if (structure.length > 0) {
+                        sqlContent += `-- Structure for table: ${tableName}\n`;
+                        sqlContent += `DROP TABLE IF EXISTS \`${tableName}\`;\n`;
+                        sqlContent += structure[0]['Create Table'] + ';\n\n';
+                    }
                 } catch (tableError) {
-                    console.warn(`Warning: Could not backup table ${table}:`, tableError.message);
+                    console.warn(`Warning: Could not backup structure for table ${tableName}:`, tableError.message);
+                    sqlContent += `-- Warning: Could not backup structure for table ${tableName}\n`;
+                    sqlContent += `-- Error: ${tableError.message}\n\n`;
                 }
             }
         }
         
         if (type === 'full' || type === 'data') {
-            // Export data
-            const tablesToBackup = tables.length > 0 ? tables : [
-                'customers', 'products', 'categories', 'sales', 'sale_items',
-                'transactions', 'chart_of_accounts', 'bank_accounts'
-            ];
+            sqlContent += '-- ========================================\n';
+            sqlContent += '-- TABLE DATA\n';
+            sqlContent += '-- ========================================\n\n';
             
-            for (const table of tablesToBackup) {
+            // Skip system tables and sensitive data for data-only backups
+            const skipTables = ['users']; // Don't backup user passwords in data-only mode
+            const tablesToBackup = type === 'full' ? existingTables : existingTables.filter(t => !skipTables.includes(t));
+            
+            for (const tableName of tablesToBackup) {
                 try {
-                    const [rows] = await connection.execute(`SELECT * FROM ${table}`);
+                    const [rows] = await connection.execute(`SELECT * FROM \`${tableName}\``);
                     if (rows.length > 0) {
-                        sqlContent += `-- Data for table: ${table}\n`;
-                        sqlContent += `INSERT INTO \`${table}\` VALUES\n`;
+                        sqlContent += `-- Data for table: ${tableName}\n`;
+                        sqlContent += `DELETE FROM \`${tableName}\`;\n`;
+                        sqlContent += `ALTER TABLE \`${tableName}\` AUTO_INCREMENT = 1;\n`;
+                        
+                        // Get column names
+                        const [columns] = await connection.execute(`
+                            SELECT COLUMN_NAME 
+                            FROM INFORMATION_SCHEMA.COLUMNS 
+                            WHERE TABLE_SCHEMA = DATABASE() 
+                            AND TABLE_NAME = ?
+                            ORDER BY ORDINAL_POSITION
+                        `, [tableName]);
+                        
+                        const columnNames = columns.map(c => `\`${c.COLUMN_NAME}\``).join(', ');
+                        sqlContent += `INSERT INTO \`${tableName}\` (${columnNames}) VALUES\n`;
                         
                         const values = rows.map(row => {
                             const vals = Object.values(row).map(val => {
                                 if (val === null) return 'NULL';
-                                if (typeof val === 'string') return `'${val.replace(/'/g, "''")}'`;
-                                if (val instanceof Date) return `'${val.toISOString().slice(0, 19).replace('T', ' ')}'`;
+                                if (typeof val === 'string') {
+                                    // Properly escape strings
+                                    return `'${val.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r')}'`;
+                                }
+                                if (val instanceof Date) {
+                                    return `'${val.toISOString().slice(0, 19).replace('T', ' ')}'`;
+                                }
+                                if (typeof val === 'boolean') {
+                                    return val ? '1' : '0';
+                                }
                                 return val;
                             });
                             return `(${vals.join(', ')})`;
                         });
                         
-                        sqlContent += values.join(',\n') + ';\n\n';
+                        // Split large inserts into chunks of 100 rows
+                        const chunkSize = 100;
+                        for (let i = 0; i < values.length; i += chunkSize) {
+                            const chunk = values.slice(i, i + chunkSize);
+                            if (i > 0) {
+                                sqlContent += `INSERT INTO \`${tableName}\` (${columnNames}) VALUES\n`;
+                            }
+                            sqlContent += chunk.join(',\n') + ';\n';
+                        }
+                        sqlContent += '\n';
+                    } else {
+                        sqlContent += `-- No data in table: ${tableName}\n\n`;
                     }
                 } catch (tableError) {
-                    console.warn(`Warning: Could not backup data for table ${table}:`, tableError.message);
+                    console.warn(`Warning: Could not backup data for table ${tableName}:`, tableError.message);
+                    sqlContent += `-- Warning: Could not backup data for table ${tableName}\n`;
+                    sqlContent += `-- Error: ${tableError.message}\n\n`;
                 }
             }
         }
         
-        // Write backup file
-        fs.writeFileSync(filepath, sqlContent, 'utf8');
+        sqlContent += 'COMMIT;\n';
+        sqlContent += 'SET FOREIGN_KEY_CHECKS = 1;\n';
+        sqlContent += `-- Backup completed at: ${new Date().toLocaleString('fa-IR')}\n`;
+        
+        // Write backup file securely
+        fs.writeFileSync(filepath, sqlContent, { encoding: 'utf8', mode: 0o600 }); // Restrict file permissions
         const fileSize = fs.statSync(filepath).size;
         
         // Update backup record
@@ -3995,6 +4299,9 @@ app.post('/backup/create', requireAuth, async (req, res) => {
             WHERE id = ?
         `, [fileSize, backupId]);
         
+        // Clean up old backups if needed
+        await cleanupOldBackups(connection);
+        
         await connection.commit();
         
         res.json({
@@ -4002,7 +4309,8 @@ app.post('/backup/create', requireAuth, async (req, res) => {
             message: 'بک‌آپ با موفقیت ایجاد شد',
             backupId: backupId,
             filename: filename,
-            size: fileSize
+            size: fileSize,
+            tables: existingTables.length
         });
         
     } catch (error) {
@@ -4011,11 +4319,20 @@ app.post('/backup/create', requireAuth, async (req, res) => {
         
         // Update backup record as failed
         try {
-            await connection.execute(`
-                UPDATE backup_history 
-                SET status = 'failed', error_message = ?
-                WHERE id = (SELECT MAX(id) FROM backup_history WHERE created_by = ?)
-            `, [error.message, req.session.user.id]);
+            const [lastBackup] = await connection.execute(`
+                SELECT id FROM backup_history 
+                WHERE created_by = ? 
+                ORDER BY created_at DESC 
+                LIMIT 1
+            `, [req.session.user.id]);
+            
+            if (lastBackup.length > 0) {
+                await connection.execute(`
+                    UPDATE backup_history 
+                    SET status = 'failed', error_message = ?, completed_at = NOW()
+                    WHERE id = ?
+                `, [error.message, lastBackup[0].id]);
+            }
         } catch (updateError) {
             console.error('Error updating backup status:', updateError);
         }
@@ -4029,25 +4346,108 @@ app.post('/backup/create', requireAuth, async (req, res) => {
     }
 });
 
-// Download backup
+// Helper function to clean up old backups
+async function cleanupOldBackups(connection) {
+    try {
+        // Get max backup files setting
+        const [settings] = await connection.execute(`
+            SELECT setting_value FROM system_settings 
+            WHERE setting_key = 'max_backup_files'
+        `);
+        
+        const maxFiles = parseInt(settings[0]?.setting_value || '10');
+        
+        // Get old backups to delete
+        const [oldBackups] = await connection.execute(`
+            SELECT id, filename FROM backup_history 
+            WHERE status = 'success'
+            ORDER BY created_at DESC 
+            LIMIT 999 OFFSET ?
+        `, [maxFiles]);
+        
+        if (oldBackups.length > 0) {
+            const fs = require('fs');
+            const path = require('path');
+            const backupDir = path.join(__dirname, 'backups');
+            
+            for (const backup of oldBackups) {
+                try {
+                    // Delete file
+                    const filepath = path.join(backupDir, backup.filename);
+                    if (fs.existsSync(filepath)) {
+                        fs.unlinkSync(filepath);
+                    }
+                    
+                    // Delete record
+                    await connection.execute(`DELETE FROM backup_history WHERE id = ?`, [backup.id]);
+                } catch (deleteError) {
+                    console.warn(`Could not delete old backup ${backup.filename}:`, deleteError.message);
+                }
+            }
+        }
+    } catch (error) {
+        console.warn('Error cleaning up old backups:', error.message);
+    }
+}
+
+// Download backup securely
 app.get('/backup/download/:id', requireAuth, async (req, res) => {
     try {
+        const backupId = req.params.id;
+        
+        // Validate backup ID
+        if (!/^\d+$/.test(backupId)) {
+            return res.status(400).send('شناسه بک‌آپ نامعتبر است');
+        }
+        
         const [backup] = await db.execute(`
-            SELECT * FROM backup_history WHERE id = ?
-        `, [req.params.id]);
+            SELECT bh.*, u.full_name as created_by_name
+            FROM backup_history bh
+            LEFT JOIN users u ON bh.created_by = u.id
+            WHERE bh.id = ? AND bh.status = 'success'
+        `, [backupId]);
         
         if (backup.length === 0) {
-            return res.status(404).send('فایل بک‌آپ یافت نشد');
+            return res.status(404).send('فایل بک‌آپ یافت نشد یا هنوز آماده نیست');
         }
         
         const path = require('path');
+        const fs = require('fs');
         const filepath = path.join(__dirname, 'backups', backup[0].filename);
         
-        if (!require('fs').existsSync(filepath)) {
+        // Security check: ensure filename doesn't contain path traversal
+        if (backup[0].filename.includes('..') || backup[0].filename.includes('/') || backup[0].filename.includes('\\')) {
+            return res.status(400).send('نام فایل نامعتبر است');
+        }
+        
+        if (!fs.existsSync(filepath)) {
+            // Update backup status as file missing
+            await db.execute(`
+                UPDATE backup_history 
+                SET status = 'failed', error_message = 'فایل در سرور یافت نشد'
+                WHERE id = ?
+            `, [backupId]);
+            
             return res.status(404).send('فایل بک‌آپ در سرور یافت نشد');
         }
         
-        res.download(filepath, backup[0].filename);
+        // Set secure headers for download
+        res.setHeader('Content-Type', 'application/sql');
+        res.setHeader('Content-Disposition', `attachment; filename="${backup[0].filename}"`);
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        
+        // Log download activity
+        console.log(`Backup download: ${backup[0].filename} by user ${req.session.user.username} (${req.session.user.full_name})`);
+        
+        res.download(filepath, backup[0].filename, (err) => {
+            if (err) {
+                console.error('Download error:', err);
+                if (!res.headersSent) {
+                    res.status(500).send('خطا در دانلود فایل');
+                }
+            }
+        });
         
     } catch (error) {
         console.error('Backup download error:', error);
@@ -4058,99 +4458,440 @@ app.get('/backup/download/:id', requireAuth, async (req, res) => {
 // Update backup settings
 app.post('/backup/settings', requireAuth, async (req, res) => {
     try {
-        const { autoBackup } = req.body;
+        const { autoBackup, maxBackupFiles = 10, retentionDays = 30 } = req.body;
         
-        await db.execute(`
-            INSERT INTO system_settings (setting_key, setting_value, updated_by)
-            VALUES ('auto_backup_enabled', ?, ?)
-            ON DUPLICATE KEY UPDATE 
-            setting_value = VALUES(setting_value),
-            updated_by = VALUES(updated_by),
-            updated_at = NOW()
-        `, [autoBackup ? 'true' : 'false', req.session.user.id]);
+        // Only admin can change backup settings
+        if (req.session.user.role !== 'admin') {
+            return res.json({ 
+                success: false, 
+                message: 'فقط مدیران سیستم مجاز به تغییر تنظیمات بک‌آپ هستند' 
+            });
+        }
         
-        res.json({ success: true });
+        // Validate settings
+        const maxFiles = parseInt(maxBackupFiles);
+        const retention = parseInt(retentionDays);
+        
+        if (maxFiles < 3 || maxFiles > 100) {
+            return res.json({ 
+                success: false, 
+                message: 'حداکثر تعداد فایل‌های بک‌آپ باید بین 3 تا 100 باشد' 
+            });
+        }
+        
+        if (retention < 7 || retention > 365) {
+            return res.json({ 
+                success: false, 
+                message: 'مدت نگهداری بک‌آپ باید بین 7 تا 365 روز باشد' 
+            });
+        }
+        
+        // Update settings
+        const settings = [
+            ['auto_backup_enabled', autoBackup ? 'true' : 'false'],
+            ['max_backup_files', maxFiles.toString()],
+            ['backup_retention_days', retention.toString()]
+        ];
+        
+        for (const [key, value] of settings) {
+            await db.execute(`
+                INSERT INTO system_settings (setting_key, setting_value, updated_by)
+                VALUES (?, ?, ?)
+                ON DUPLICATE KEY UPDATE 
+                setting_value = VALUES(setting_value),
+                updated_by = VALUES(updated_by),
+                updated_at = NOW()
+            `, [key, value, req.session.user.id]);
+        }
+        
+        res.json({ 
+            success: true,
+            message: 'تنظیمات بک‌آپ با موفقیت بروزرسانی شد'
+        });
     } catch (error) {
         console.error('Backup settings error:', error);
-        res.json({ success: false, message: error.message });
+        res.json({ success: false, message: 'خطا در بروزرسانی تنظیمات: ' + error.message });
     }
 });
 
-// Restore backup
+// Secure backup restore
 app.post('/backup/restore', requireAuth, async (req, res) => {
+    // Only admin users can restore backups
+    if (req.session.user.role !== 'admin') {
+        return res.json({ 
+            success: false, 
+            message: 'فقط مدیران سیستم مجاز به بازیابی بک‌آپ هستند' 
+        });
+    }
+    
     const connection = await db.getConnection();
-    try {
-        await connection.beginTransaction();
+    const fs = require('fs');
+    const path = require('path');
+    const multer = require('multer');
+    
+    // Configure secure file upload
+    const storage = multer.diskStorage({
+        destination: function (req, file, cb) {
+            const tempDir = path.join(__dirname, 'temp_uploads');
+            if (!fs.existsSync(tempDir)) {
+                fs.mkdirSync(tempDir, { recursive: true, mode: 0o700 });
+            }
+            cb(null, tempDir);
+        },
+        filename: function (req, file, cb) {
+            // Generate secure filename
+            const crypto = require('crypto');
+            const randomName = crypto.randomBytes(16).toString('hex');
+            cb(null, `restore_${randomName}.sql`);
+        }
+    });
+    
+    const upload = multer({ 
+        storage: storage,
+        limits: {
+            fileSize: 100 * 1024 * 1024, // 100MB max
+            files: 1
+        },
+        fileFilter: function (req, file, cb) {
+            // Only allow SQL files
+            if (file.mimetype === 'application/sql' || 
+                file.originalname.toLowerCase().endsWith('.sql') ||
+                file.mimetype === 'text/plain') {
+                cb(null, true);
+            } else {
+                cb(new Error('فقط فایل‌های SQL مجاز هستند'));
+            }
+        }
+    });
+    
+    upload.single('backupFile')(req, res, async (uploadErr) => {
+        if (uploadErr) {
+            return res.json({ 
+                success: false, 
+                message: 'خطا در آپلود فایل: ' + uploadErr.message 
+            });
+        }
         
-        const multer = require('multer');
-        const upload = multer({ dest: 'temp_uploads/' });
+        if (!req.file) {
+            return res.json({ 
+                success: false, 
+                message: 'فایل بک‌آپ انتخاب نشده است' 
+            });
+        }
         
-        // Handle file upload
-        upload.single('backupFile')(req, res, async (err) => {
-            if (err) {
-                return res.json({ success: false, message: 'خطا در آپلود فایل' });
+        let tempFilePath = req.file.path;
+        
+        try {
+            await connection.beginTransaction();
+            
+            // Read and validate SQL content
+            const sqlContent = fs.readFileSync(tempFilePath, 'utf8');
+            
+            // Basic security validation
+            const dangerousPatterns = [
+                /DROP\s+DATABASE/i,
+                /CREATE\s+DATABASE/i,
+                /GRANT\s+/i,
+                /REVOKE\s+/i,
+                /ALTER\s+USER/i,
+                /CREATE\s+USER/i,
+                /DROP\s+USER/i,
+                /LOAD_FILE/i,
+                /INTO\s+OUTFILE/i,
+                /INTO\s+DUMPFILE/i
+            ];
+            
+            for (const pattern of dangerousPatterns) {
+                if (pattern.test(sqlContent)) {
+                    throw new Error('فایل بک‌آپ حاوی دستورات خطرناک است');
+                }
             }
             
-            if (!req.file) {
-                return res.json({ success: false, message: 'فایل انتخاب نشده است' });
+            // Enhanced restore process - Clear existing data first
+            console.log('Clearing existing data before restore...');
+            
+            // Get list of tables to clear (excluding system tables)
+            const [tables] = await connection.execute(`
+                SELECT TABLE_NAME 
+                FROM INFORMATION_SCHEMA.TABLES 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_TYPE = 'BASE TABLE'
+                AND TABLE_NAME NOT IN ('users', 'backup_history', 'system_settings')
+                ORDER BY TABLE_NAME
+            `);
+            
+            // Clear data from tables in correct order (respecting foreign keys)
+            const tableClearOrder = [
+                'bank_transactions',
+                'categories', 
+                'chart_of_accounts',
+                'expenses',
+                'expense_categories',
+                'financial_transactions',
+                'inventory_items',
+                'invoices',
+                'invoice_items',
+                'journal_entries',
+                'journal_entry_details',
+                'payments',
+                'transactions',
+                'employees',
+                'gold_inventory',
+                'gold_rates',
+                'other_parties',
+                'suppliers',
+                'bank_accounts',
+                'customers',
+                'item_types'
+            ];
+            
+            for (const tableName of tableClearOrder) {
+                try {
+                    // Check if table exists
+                    const [tableExists] = await connection.execute(`
+                        SELECT COUNT(*) as count 
+                        FROM INFORMATION_SCHEMA.TABLES 
+                        WHERE TABLE_SCHEMA = DATABASE() 
+                        AND TABLE_NAME = ?
+                    `, [tableName]);
+                    
+                    if (tableExists[0].count > 0) {
+                        await connection.execute(`DELETE FROM \`${tableName}\``);
+                        await connection.execute(`ALTER TABLE \`${tableName}\` AUTO_INCREMENT = 1`);
+                        console.log(`Cleared table: ${tableName}`);
+                    }
+                } catch (clearError) {
+                    console.warn(`Could not clear table ${tableName}:`, clearError.message);
+                }
             }
             
-            try {
-                const fs = require('fs');
-                const sqlContent = fs.readFileSync(req.file.path, 'utf8');
-                
-                // Execute SQL commands
-                const statements = sqlContent.split(';').filter(stmt => stmt.trim());
-                
-                for (const statement of statements) {
-                    if (statement.trim()) {
+            // Validate that it's a proper backup file
+            if (!sqlContent.includes('Gold Shop Management System') && 
+                !sqlContent.includes('-- Backup') &&
+                !sqlContent.includes('CREATE TABLE')) {
+                throw new Error('فایل انتخاب شده یک بک‌آپ معتبر نیست');
+            }
+            
+            // Create a backup of current state before restore
+            console.log('Creating safety backup before restore...');
+            const safetyBackupId = Date.now() + Math.floor(Math.random() * 1000);
+            const safetyFilename = `safety_backup_before_restore_${new Date().toISOString().replace(/[:.]/g, '-')}.sql`;
+            
+            await connection.execute(`
+                INSERT INTO backup_history (id, filename, backup_type, status, created_by, description)
+                VALUES (?, ?, 'full', 'processing', ?, 'بک‌آپ امنیتی قبل از بازیابی')
+            `, [safetyBackupId, safetyFilename, req.session.user.id]);
+            
+            // Disable foreign key checks for restore
+            await connection.execute('SET FOREIGN_KEY_CHECKS = 0');
+            await connection.execute('SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO"');
+            await connection.execute('SET AUTOCOMMIT = 0');
+            
+            // Split SQL content into individual statements
+            const statements = sqlContent
+                .split(';')
+                .map(stmt => stmt.trim())
+                .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
+            
+            console.log(`Executing ${statements.length} SQL statements...`);
+            
+            let executedStatements = 0;
+            let droppedTables = 0;
+            let createdTables = 0;
+            let insertedData = 0;
+            
+            for (const statement of statements) {
+                if (statement.trim()) {
+                    try {
+                        // Execute the statement
                         await connection.execute(statement);
+                        executedStatements++;
+                        
+                        // Count different types of operations
+                        const upperStmt = statement.toUpperCase();
+                        if (upperStmt.includes('DROP TABLE')) {
+                            droppedTables++;
+                        } else if (upperStmt.includes('CREATE TABLE')) {
+                            createdTables++;
+                        } else if (upperStmt.includes('INSERT INTO') || upperStmt.includes('TRUNCATE')) {
+                            insertedData++;
+                        }
+                        
+                    } catch (stmtError) {
+                        // Handle specific errors
+                        if (stmtError.code === 'ER_DUP_ENTRY') {
+                            // For duplicate entries, try to handle gracefully
+                            console.warn(`Duplicate entry warning: ${stmtError.message}`);
+                            
+                            // If it's an INSERT statement, try to convert to INSERT IGNORE or REPLACE
+                            if (statement.toUpperCase().includes('INSERT INTO')) {
+                                try {
+                                    const ignoreStatement = statement.replace(/INSERT INTO/i, 'INSERT IGNORE INTO');
+                                    await connection.execute(ignoreStatement);
+                                    executedStatements++;
+                                    insertedData++;
+                                } catch (ignoreError) {
+                                    console.warn(`Could not execute with IGNORE: ${ignoreError.message}`);
+                                }
+                            }
+                        } else if (stmtError.code === 'ER_TABLE_EXISTS_ERROR') {
+                            console.warn(`Table already exists: ${stmtError.message}`);
+                        } else if (stmtError.code === 'ER_BAD_TABLE_ERROR') {
+                            console.warn(`Table doesn't exist for DROP: ${stmtError.message}`);
+                        } else {
+                            // Log other errors but continue
+                            console.warn('Statement execution warning:', stmtError.message);
+                        }
                     }
                 }
-                
-                // Clean up temp file
-                fs.unlinkSync(req.file.path);
-                
-                await connection.commit();
-                res.json({ success: true, message: 'بک‌آپ با موفقیت بازیابی شد' });
-                
-            } catch (restoreError) {
-                await connection.rollback();
-                console.error('Restore error:', restoreError);
-                res.json({ success: false, message: 'خطا در بازیابی بک‌آپ: ' + restoreError.message });
             }
-        });
-        
-    } catch (error) {
-        await connection.rollback();
-        console.error('Backup restore error:', error);
-        res.json({ success: false, message: 'خطا در بازیابی بک‌آپ' });
-    } finally {
-        connection.release();
-    }
+            
+            console.log(`Restore summary: ${droppedTables} tables dropped, ${createdTables} tables created, ${insertedData} data operations`);
+            
+            // Re-enable foreign key checks
+            await connection.execute('SET FOREIGN_KEY_CHECKS = 1');
+            
+            // Update safety backup as successful
+            await connection.execute(`
+                UPDATE backup_history 
+                SET status = 'success', completed_at = NOW(), 
+                    description = CONCAT(description, ' - بازیابی موفق')
+                WHERE id = ?
+            `, [safetyBackupId]);
+            
+            await connection.commit();
+            
+            // Clean up temp file
+            if (fs.existsSync(tempFilePath)) {
+                fs.unlinkSync(tempFilePath);
+            }
+            
+            // Log restore activity
+            console.log(`Database restored by user ${req.session.user.username} (${req.session.user.full_name})`);
+            console.log(`Executed ${executedStatements} SQL statements successfully`);
+            
+            // Verify restore by checking some key tables
+            const [customerCount] = await connection.execute('SELECT COUNT(*) as count FROM customers');
+            const [invoiceCount] = await connection.execute('SELECT COUNT(*) as count FROM invoices');
+            const [itemCount] = await connection.execute('SELECT COUNT(*) as count FROM inventory_items');
+            
+            res.json({ 
+                success: true, 
+                message: `بازیابی با موفقیت انجام شد!\n` +
+                        `- ${executedStatements} دستور اجرا شد\n` +
+                        `- ${droppedTables} جدول حذف شد\n` +
+                        `- ${createdTables} جدول ایجاد شد\n` +
+                        `- ${insertedData} عملیات داده انجام شد\n\n` +
+                        `وضعیت فعلی:\n` +
+                        `- مشتریان: ${customerCount[0].count}\n` +
+                        `- فاکتورها: ${invoiceCount[0].count}\n` +
+                        `- کالاها: ${itemCount[0].count}`,
+                executedStatements: executedStatements,
+                summary: {
+                    dropped: droppedTables,
+                    created: createdTables,
+                    dataOps: insertedData,
+                    customers: customerCount[0].count,
+                    invoices: invoiceCount[0].count,
+                    items: itemCount[0].count
+                }
+            });
+            
+        } catch (error) {
+            await connection.rollback();
+            console.error('Backup restore error:', error);
+            
+            // Clean up temp file
+            if (fs.existsSync(tempFilePath)) {
+                try {
+                    fs.unlinkSync(tempFilePath);
+                } catch (cleanupError) {
+                    console.error('Error cleaning up temp file:', cleanupError);
+                }
+            }
+            
+            // Re-enable foreign key checks in case of error
+            try {
+                await connection.execute('SET FOREIGN_KEY_CHECKS = 1');
+            } catch (fkError) {
+                console.error('Error re-enabling foreign key checks:', fkError);
+            }
+            
+            res.json({ 
+                success: false, 
+                message: 'خطا در بازیابی بک‌آپ: ' + error.message 
+            });
+        } finally {
+            connection.release();
+        }
+    });
 });
 
-// Delete backup
+// Delete backup securely
 app.delete('/backup/delete/:id', requireAuth, async (req, res) => {
     try {
         const backupId = req.params.id;
         
-        // Get backup info
+        // Validate backup ID
+        if (!/^\d+$/.test(backupId)) {
+            return res.json({ success: false, message: 'شناسه بک‌آپ نامعتبر است' });
+        }
+        
+        // Get backup info with user check
         const [backup] = await db.execute(`
-            SELECT * FROM backup_history WHERE id = ?
+            SELECT bh.*, u.full_name as created_by_name
+            FROM backup_history bh
+            LEFT JOIN users u ON bh.created_by = u.id
+            WHERE bh.id = ?
         `, [backupId]);
         
         if (backup.length === 0) {
             return res.json({ success: false, message: 'بک‌آپ یافت نشد' });
         }
         
-        // Delete file from filesystem
+        // Only admin or the creator can delete backups
+        if (req.session.user.role !== 'admin' && backup[0].created_by !== req.session.user.id) {
+            return res.json({ 
+                success: false, 
+                message: 'شما مجاز به حذف این بک‌آپ نیستید' 
+            });
+        }
+        
+        // Prevent deletion of safety backups (keep at least 3 recent backups)
+        const [recentBackups] = await db.execute(`
+            SELECT COUNT(*) as count 
+            FROM backup_history 
+            WHERE status = 'success' 
+            AND created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)
+        `);
+        
+        if (recentBackups[0].count <= 3 && backup[0].status === 'success') {
+            return res.json({ 
+                success: false, 
+                message: 'نمی‌توان آخرین بک‌آپ‌های موفق را حذف کرد. حداقل 3 بک‌آپ اخیر باید نگهداری شود.' 
+            });
+        }
+        
         const fs = require('fs');
         const path = require('path');
+        
+        // Security check for filename
+        if (backup[0].filename.includes('..') || 
+            backup[0].filename.includes('/') || 
+            backup[0].filename.includes('\\')) {
+            return res.json({ success: false, message: 'نام فایل نامعتبر است' });
+        }
+        
         const filepath = path.join(__dirname, 'backups', backup[0].filename);
         
+        // Delete file from filesystem
         if (fs.existsSync(filepath)) {
-            fs.unlinkSync(filepath);
+            try {
+                fs.unlinkSync(filepath);
+            } catch (fileError) {
+                console.warn(`Could not delete backup file ${backup[0].filename}:`, fileError.message);
+                // Continue with database deletion even if file deletion fails
+            }
         }
         
         // Delete from database
@@ -4158,11 +4899,21 @@ app.delete('/backup/delete/:id', requireAuth, async (req, res) => {
             DELETE FROM backup_history WHERE id = ?
         `, [backupId]);
         
-        res.json({ success: true, message: 'بک‌آپ با موفقیت حذف شد' });
+        // Log deletion activity
+        console.log(`Backup deleted: ${backup[0].filename} by user ${req.session.user.username} (${req.session.user.full_name})`);
+        
+        res.json({ 
+            success: true, 
+            message: 'بک‌آپ با موفقیت حذف شد',
+            deletedFile: backup[0].filename
+        });
         
     } catch (error) {
         console.error('Delete backup error:', error);
-        res.json({ success: false, message: 'خطا در حذف بک‌آپ: ' + error.message });
+        res.json({ 
+            success: false, 
+            message: 'خطا در حذف بک‌آپ: ' + error.message 
+        });
     }
 });
 
@@ -4356,176 +5107,28 @@ app.post('/settings/general', requireAuth, async (req, res) => {
 });
 
 // Create backup from settings
+// Create backup from settings (redirect to main backup route)
 app.post('/settings/backup/create', requireAuth, async (req, res) => {
-    const connection = await db.getConnection();
-    try {
-        await connection.beginTransaction();
-        
-        const { type = 'full', description } = req.body;
-        const fs = require('fs');
-        const path = require('path');
-        
-        // Create backup directory if it doesn't exist
-        const backupDir = path.join(__dirname, 'backups');
-        if (!fs.existsSync(backupDir)) {
-            fs.mkdirSync(backupDir, { recursive: true });
-        }
-        
-        // Generate backup filename
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `backup_${type}_${timestamp}.sql`;
-        const filepath = path.join(backupDir, filename);
-        
-        // Start backup process
-        const backupId = Date.now();
-        await connection.execute(`
-            INSERT INTO backup_history (id, filename, backup_type, description, status, created_by)
-            VALUES (?, ?, ?, ?, 'processing', ?)
-        `, [backupId, filename, type, description || '', req.session.user.id]);
-        
-        let sqlContent = '-- Gold Shop Management System Backup\n';
-        sqlContent += `-- Created: ${new Date().toLocaleString('fa-IR')}\n`;
-        sqlContent += `-- Type: ${type}\n`;
-        sqlContent += `-- Description: ${description || 'No description'}\n\n`;
-        
-        // Get all tables
-        const [tables] = await connection.execute('SHOW TABLES');
-        const tableNames = tables.map(table => Object.values(table)[0]);
-        
-        if (type === 'full' || type === 'structure') {
-            // Export table structures
-            for (const tableName of tableNames) {
-                try {
-                    const [structure] = await connection.execute(`SHOW CREATE TABLE \`${tableName}\``);
-                    sqlContent += `-- Table: ${tableName}\n`;
-                    sqlContent += `DROP TABLE IF EXISTS \`${tableName}\`;\n`;
-                    sqlContent += structure[0]['Create Table'] + ';\n\n';
-                } catch (tableError) {
-                    console.warn(`Warning: Could not backup table ${tableName}:`, tableError.message);
-                }
-            }
-        }
-        
-        if (type === 'full' || type === 'data') {
-            // Export data (exclude sensitive tables like backup_history)
-            const excludeTables = ['backup_history'];
-            const dataTables = tableNames.filter(name => !excludeTables.includes(name));
-            
-            for (const tableName of dataTables) {
-                try {
-                    const [rows] = await connection.execute(`SELECT * FROM \`${tableName}\``);
-                    if (rows.length > 0) {
-                        sqlContent += `-- Data for table: ${tableName}\n`;
-                        
-                        // Get column info
-                        const [columns] = await connection.execute(`SHOW COLUMNS FROM \`${tableName}\``);
-                        const columnNames = columns.map(col => `\`${col.Field}\``);
-                        
-                        sqlContent += `INSERT INTO \`${tableName}\` (${columnNames.join(', ')}) VALUES\n`;
-                        
-                        const values = rows.map(row => {
-                            const vals = Object.values(row).map(val => {
-                                if (val === null) return 'NULL';
-                                if (typeof val === 'string') return `'${val.replace(/'/g, "''")}'`;
-                                if (val instanceof Date) return `'${val.toISOString().slice(0, 19).replace('T', ' ')}'`;
-                                return val;
-                            });
-                            return `(${vals.join(', ')})`;
-                        });
-                        
-                        sqlContent += values.join(',\n') + ';\n\n';
-                    }
-                } catch (tableError) {
-                    console.warn(`Warning: Could not backup data for table ${tableName}:`, tableError.message);
-                }
-            }
-        }
-        
-        // Write backup file
-        fs.writeFileSync(filepath, sqlContent, 'utf8');
-        const fileSize = fs.statSync(filepath).size;
-        
-        // Update backup record
-        await connection.execute(`
-            UPDATE backup_history 
-            SET status = 'success', file_size = ?, completed_at = NOW()
-            WHERE id = ?
-        `, [fileSize, backupId]);
-        
-        await connection.commit();
-        
-        res.json({
-            success: true,
-            message: 'بک‌آپ با موفقیت ایجاد شد',
-            backupId: backupId,
-            filename: filename,
-            size: fileSize
-        });
-        
-    } catch (error) {
-        await connection.rollback();
-        console.error('Backup creation error:', error);
-        
-        // Update backup record as failed
-        try {
-            await connection.execute(`
-                UPDATE backup_history 
-                SET status = 'failed', error_message = ?
-                WHERE id = (SELECT MAX(id) FROM backup_history WHERE created_by = ?)
-            `, [error.message, req.session.user.id]);
-        } catch (updateError) {
-            console.error('Error updating backup status:', updateError);
-        }
-        
-        res.json({
-            success: false,
-            message: 'خطا در ایجاد بک‌آپ: ' + error.message
-        });
-    } finally {
-        connection.release();
-    }
+    // Redirect to the main secure backup creation route
+    req.url = '/backup/create';
+    req.method = 'POST';
+    
+    // Forward the request to the main backup route
+    return app._router.handle(req, res, () => {
+        res.status(404).json({ success: false, message: 'Route not found' });
+    });
 });
 
-// Restore backup from settings
+// Restore backup from settings (redirect to main restore route)
 app.post('/settings/backup/restore', requireAuth, async (req, res) => {
-    if (!req.files || !req.files.backupFile) {
-        return res.json({ success: false, message: 'فایل بک‌آپ انتخاب نشده است' });
-    }
+    // Redirect to the main secure restore route
+    req.url = '/backup/restore';
+    req.method = 'POST';
     
-    const connection = await db.getConnection();
-    try {
-        await connection.beginTransaction();
-        
-        const backupFile = req.files.backupFile;
-        const sqlContent = backupFile.data.toString('utf8');
-        
-        // Split SQL content into individual statements
-        const statements = sqlContent.split(';').filter(stmt => stmt.trim() && !stmt.trim().startsWith('--'));
-        
-        // Execute each statement
-        for (const statement of statements) {
-            if (statement.trim()) {
-                await connection.execute(statement);
-            }
-        }
-        
-        await connection.commit();
-        
-        res.json({
-            success: true,
-            message: 'بازیابی با موفقیت انجام شد'
-        });
-        
-    } catch (error) {
-        await connection.rollback();
-        console.error('Restore error:', error);
-        res.json({
-            success: false,
-            message: 'خطا در بازیابی: ' + error.message
-        });
-    } finally {
-        connection.release();
-    }
+    // Forward the request to the main restore route
+    return app._router.handle(req, res, () => {
+        res.status(404).json({ success: false, message: 'Route not found' });
+    });
 });
 
 // Backup history page
@@ -4547,6 +5150,167 @@ app.get('/settings/backup/history', requireAuth, async (req, res) => {
     } catch (error) {
         console.error('Backup history error:', error);
         res.status(500).send('خطا در بارگذاری تاریخچه بک‌آپ');
+    }
+});
+
+// Get backup status (for AJAX polling)
+app.get('/backup/status', requireAuth, async (req, res) => {
+    try {
+        const [processingBackups] = await db.execute(`
+            SELECT COUNT(*) as count 
+            FROM backup_history 
+            WHERE status = 'processing'
+        `);
+        
+        const [recentBackups] = await db.execute(`
+            SELECT id, filename, status, created_at
+            FROM backup_history 
+            ORDER BY created_at DESC 
+            LIMIT 5
+        `);
+        
+        res.json({
+            success: true,
+            processingCount: processingBackups[0].count,
+            recentBackups: recentBackups,
+            hasNewBackups: false // This would be implemented with websockets or polling
+        });
+    } catch (error) {
+        console.error('Backup status error:', error);
+        res.json({ success: false, message: error.message });
+    }
+});
+
+// Cleanup old backups manually
+app.post('/backup/cleanup', requireAuth, async (req, res) => {
+    try {
+        // Only admin can cleanup backups
+        if (req.session.user.role !== 'admin') {
+            return res.json({ 
+                success: false, 
+                message: 'فقط مدیران سیستم مجاز به پاک‌سازی بک‌آپ‌ها هستند' 
+            });
+        }
+        
+        const connection = await db.getConnection();
+        await connection.beginTransaction();
+        
+        // Get retention settings
+        const [settings] = await connection.execute(`
+            SELECT setting_value FROM system_settings 
+            WHERE setting_key = 'backup_retention_days'
+        `);
+        
+        const retentionDays = parseInt(settings[0]?.setting_value || '30');
+        
+        // Find old backups to delete
+        const [oldBackups] = await connection.execute(`
+            SELECT id, filename FROM backup_history 
+            WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
+            AND status IN ('success', 'failed')
+        `, [retentionDays]);
+        
+        let deletedCount = 0;
+        const fs = require('fs');
+        const path = require('path');
+        const backupDir = path.join(__dirname, 'backups');
+        
+        for (const backup of oldBackups) {
+            try {
+                // Delete file
+                const filepath = path.join(backupDir, backup.filename);
+                if (fs.existsSync(filepath)) {
+                    fs.unlinkSync(filepath);
+                }
+                
+                // Delete record
+                await connection.execute(`DELETE FROM backup_history WHERE id = ?`, [backup.id]);
+                deletedCount++;
+            } catch (deleteError) {
+                console.warn(`Could not delete old backup ${backup.filename}:`, deleteError.message);
+            }
+        }
+        
+        await connection.commit();
+        connection.release();
+        
+        res.json({ 
+            success: true, 
+            deletedCount: deletedCount,
+            message: `${deletedCount} فایل بک‌آپ قدیمی حذف شد`
+        });
+        
+    } catch (error) {
+        console.error('Backup cleanup error:', error);
+        res.json({ 
+            success: false, 
+            message: 'خطا در پاک‌سازی بک‌آپ‌ها: ' + error.message 
+        });
+    }
+});
+
+// Get database size and info
+app.get('/settings/db-size', requireAuth, async (req, res) => {
+    try {
+        const [sizeInfo] = await db.execute(`
+            SELECT 
+                ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS size_mb,
+                COUNT(*) as table_count
+            FROM information_schema.tables 
+            WHERE table_schema = DATABASE()
+        `);
+        
+        const [recordCounts] = await db.execute(`
+            SELECT 
+                (SELECT COUNT(*) FROM customers) as customers,
+                (SELECT COUNT(*) FROM inventory_items) as items,
+                (SELECT COUNT(*) FROM invoices) as invoices,
+                (SELECT COUNT(*) FROM backup_history) as backups
+        `);
+        
+        res.json({
+            success: true,
+            size: `${sizeInfo[0].size_mb} MB`,
+            tableCount: sizeInfo[0].table_count,
+            records: recordCounts[0]
+        });
+    } catch (error) {
+        console.error('Database size error:', error);
+        res.json({ success: false, message: error.message });
+    }
+});
+
+// Get last backup info
+app.get('/settings/last-backup-info', requireAuth, async (req, res) => {
+    try {
+        const [lastBackup] = await db.execute(`
+            SELECT created_at, backup_type, status
+            FROM backup_history 
+            WHERE status = 'success'
+            ORDER BY created_at DESC 
+            LIMIT 1
+        `);
+        
+        if (lastBackup.length > 0) {
+            const backup = lastBackup[0];
+            const date = new Date(backup.created_at);
+            const persianDate = date.toLocaleDateString('fa-IR');
+            const time = date.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+            
+            res.json({
+                success: true,
+                lastBackup: `${persianDate} - ${time}`,
+                type: backup.backup_type
+            });
+        } else {
+            res.json({
+                success: true,
+                lastBackup: null
+            });
+        }
+    } catch (error) {
+        console.error('Last backup info error:', error);
+        res.json({ success: false, message: error.message });
     }
 });
 
@@ -4648,42 +5412,7 @@ app.post('/settings/optimize-db', requireAuth, async (req, res) => {
     }
 });
 
-// Last backup info
-app.get('/settings/last-backup-info', requireAuth, async (req, res) => {
-    try {
-        const [backups] = await db.execute(`
-            SELECT created_at FROM backup_history 
-            WHERE status = 'success' 
-            ORDER BY created_at DESC 
-            LIMIT 1
-        `);
-        
-        if (backups.length > 0) {
-            const lastBackup = new Date(backups[0].created_at).toLocaleDateString('fa-IR');
-            res.json({ success: true, lastBackup });
-        } else {
-            res.json({ success: false });
-        }
-    } catch (error) {
-        res.json({ success: false });
-    }
-});
 
-// Database size info
-app.get('/settings/db-size', requireAuth, async (req, res) => {
-    try {
-        const [sizeResult] = await db.execute(`
-            SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS db_size_mb
-            FROM information_schema.tables 
-            WHERE table_schema = DATABASE()
-        `);
-        
-        const size = sizeResult[0].db_size_mb || 0;
-        res.json({ success: true, size: `${size} MB` });
-    } catch (error) {
-        res.json({ success: false, size: 'نامشخص' });
-    }
-});
 
 // Add this after the /sales/new route (around line 755)
 
