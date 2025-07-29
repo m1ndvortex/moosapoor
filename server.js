@@ -3534,8 +3534,14 @@ app.get('/accounting/customer-detail/:id', requireAuth, async (req, res) => {
             formatted_date: new Date(transaction.transaction_date).toLocaleDateString('fa-IR')
         }));
 
-        // دریافت خلاصه حساب طلا
-        const goldSummary = await GoldTransactionDB.getCustomerSummary(customerId);
+        // دریافت خلاصه حساب طلا با error handling
+        let goldSummary = { balance: 0, totalCredit: 0, totalDebit: 0 };
+        try {
+            goldSummary = await GoldTransactionDB.getCustomerSummary(customerId);
+        } catch (goldError) {
+            console.error('Gold summary error:', goldError);
+            // Use default values if gold system fails
+        }
 
         res.render('accounting/customer-detail', {
             title: 'حساب مالی مشتری',
