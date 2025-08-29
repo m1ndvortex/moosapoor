@@ -508,6 +508,11 @@ app.get('/customers', requireAuth, async (req, res) => {
                     ELSE 'تسویه'
                 END AS balance_status,
                 CASE 
+                    WHEN c.gold_balance_grams > 0 THEN 'gold_credit'
+                    WHEN c.gold_balance_grams < 0 THEN 'gold_debit'
+                    ELSE 'gold_balanced'
+                END AS gold_balance_status,
+                CASE 
                     WHEN c.last_purchase_date IS NOT NULL THEN 
                         DATEDIFF(CURDATE(), c.last_purchase_date)
                     ELSE NULL 
@@ -3033,7 +3038,8 @@ app.get('/accounting/customer/:id', requireAuth, async (req, res) => {
         `, [req.params.id]);
 
         const goldSummary = goldTransactions[0] || { total_credit: 0, total_debit: 0 };
-        const goldBalance = (goldSummary.total_credit || 0) - (goldSummary.total_debit || 0);
+        // Use gold balance from customers table for consistency with list view
+        const goldBalance = customer[0].gold_balance_grams || 0;
 
         res.render('accounting/customer-detail', {
             title: `حسابداری - ${customer[0].full_name}`,
@@ -3537,10 +3543,27 @@ app.get('/accounting/customer-detail/:id', requireAuth, async (req, res) => {
         // دریافت خلاصه حساب طلا با error handling
         let goldSummary = { balance: 0, totalCredit: 0, totalDebit: 0 };
         try {
-            goldSummary = await GoldTransactionDB.getCustomerSummary(customerId);
+            // Get gold balance from customers table (consistent with list view)
+            const customerGoldBalance = customer[0].gold_balance_grams || 0;
+            
+            // Also get transaction summary for additional info
+            const transactionSummary = await GoldTransactionDB.getCustomerSummary(customerId);
+            
+            goldSummary = {
+                balance: customerGoldBalance, // Use the same source as list view
+                totalCredit: transactionSummary.totalCredit || 0,
+                totalDebit: transactionSummary.totalDebit || 0,
+                transactionCount: transactionSummary.transactionCount || 0
+            };
         } catch (goldError) {
             console.error('Gold summary error:', goldError);
-            // Use default values if gold system fails
+            // Fallback to customer table balance if available
+            goldSummary = {
+                balance: customer[0].gold_balance_grams || 0,
+                totalCredit: 0,
+                totalDebit: 0,
+                transactionCount: 0
+            };
         }
 
         res.render('accounting/customer-detail', {
@@ -5020,49 +5043,132 @@ app.get('/accounting/trial-balance', requireAuth, async (req, res) => {
 // Enhanced Financial Reports
 app.get('/accounting/financial-reports', requireAuth, async (req, res) => {
     try {
-        const { report_type, start_date, end_date } = req.query;
-        const reportType = report_type || 'summary';
+        const { start_date, end_date } = req.query;
         
-        // Calculate default date range (current month)
+        // Calculate default date range (current year)
         const today = new Date();
-        const startDate = start_date || new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+        const startDate = start_date || new Date(today.getFullYear(), 0, 1).toISOString().split('T')[0];
         const endDate = end_date || today.toISOString().split('T')[0];
         
-        let reportData = {};
+        // Calculate Profit & Loss Data
+        const [salesRevenue] = await db.execute(`
+            SELECT COALESCE(SUM(grand_total), 0) as total
+            FROM invoices 
+            WHERE invoice_type = 'sale' 
+              AND DATE(invoice_date) BETWEEN ? AND ? 
+              AND status = 'active'
+        `, [startDate, endDate]);
         
-        if (reportType === 'profit_loss') {
-            // Profit & Loss Statement
-            const [revenue] = await db.execute(`
-                SELECT COALESCE(SUM(jed.credit_amount - jed.debit_amount), 0) as total
-                FROM journal_entry_details jed
-                JOIN journal_entries je ON jed.journal_entry_id = je.id
-                JOIN chart_of_accounts coa ON jed.account_id = coa.id
-                WHERE coa.account_type = 'revenue'
-                  AND DATE(je.entry_date) BETWEEN ? AND ?
-                  AND je.status = 'posted'
-            `, [startDate, endDate]);
+        const [purchaseRevenue] = await db.execute(`
+            SELECT COALESCE(SUM(grand_total), 0) as total
+            FROM invoices 
+            WHERE invoice_type = 'purchase' 
+              AND DATE(invoice_date) BETWEEN ? AND ? 
+              AND status = 'active'
+        `, [startDate, endDate]);
+        
+        const [totalExpenses] = await db.execute(`
+            SELECT COALESCE(SUM(amount), 0) as total
+            FROM expenses 
+            WHERE DATE(expense_date) BETWEEN ? AND ?
+              AND status = 'paid'
+        `, [startDate, endDate]);
+        
+        // Calculate Balance Sheet Data
+        const [cashBalance] = await db.execute(`
+            SELECT COALESCE(SUM(current_balance), 0) as total
+            FROM bank_accounts 
+            WHERE is_active = 1
+        `);
+        
+        const [customerBalances] = await db.execute(`
+            SELECT COALESCE(SUM(current_balance), 0) as total
+            FROM customers 
+            WHERE current_balance > 0
+        `);
+        
+        const [inventoryValue] = await db.execute(`
+            SELECT COALESCE(SUM(purchase_cost * current_quantity), 0) as total
+            FROM inventory_items 
+            WHERE current_quantity > 0
+        `);
+        
+        const [supplierBalances] = await db.execute(`
+            SELECT COALESCE(SUM(current_balance), 0) as total
+            FROM suppliers 
+            WHERE current_balance > 0
+        `);
+        
+        // Calculate Cash Flow Data
+        const [cashInflows] = await db.execute(`
+            SELECT COALESCE(SUM(amount), 0) as total
+            FROM payments 
+            WHERE DATE(payment_date) BETWEEN ? AND ?
+        `, [startDate, endDate]);
+        
+        const [cashOutflows] = await db.execute(`
+            SELECT COALESCE(SUM(amount), 0) as total
+            FROM expenses 
+            WHERE DATE(expense_date) BETWEEN ? AND ?
+              AND status = 'paid'
+        `, [startDate, endDate]);
+        
+        // Calculate totals and percentages
+        const totalRevenue = salesRevenue[0].total + purchaseRevenue[0].total;
+        const grossProfit = totalRevenue - totalExpenses[0].total;
+        const netIncome = grossProfit;
+        
+        const totalAssets = cashBalance[0].total + customerBalances[0].total + inventoryValue[0].total;
+        const totalLiabilities = supplierBalances[0].total;
+        const totalEquity = totalAssets - totalLiabilities;
+        
+        // Calculate percentages
+        const salesPercentage = totalRevenue > 0 ? Math.round((salesRevenue[0].total / totalRevenue) * 100) : 0;
+        const purchasePercentage = totalRevenue > 0 ? Math.round((purchaseRevenue[0].total / totalRevenue) * 100) : 0;
+        const netIncomePercentage = totalRevenue > 0 ? Math.round((netIncome / totalRevenue) * 100) : 0;
+        
+        // Calculate financial ratios
+        const currentRatio = totalLiabilities > 0 ? (totalAssets / totalLiabilities).toFixed(1) : 0;
+        const profitMargin = totalRevenue > 0 ? ((netIncome / totalRevenue) * 100).toFixed(1) : 0;
+        const assetTurnover = totalAssets > 0 ? (totalRevenue / totalAssets).toFixed(1) : 0;
+        const debtRatio = totalAssets > 0 ? ((totalLiabilities / totalAssets) * 100).toFixed(1) : 0;
+        
+        const reportData = {
+            // Profit & Loss
+            salesRevenue: salesRevenue[0]?.total || 0,
+            purchaseRevenue: purchaseRevenue[0]?.total || 0,
+            totalRevenue: totalRevenue || 0,
+            totalExpenses: totalExpenses[0]?.total || 0,
+            grossProfit: grossProfit || 0,
+            netIncome: netIncome || 0,
+            salesPercentage: salesPercentage || 0,
+            purchasePercentage: purchasePercentage || 0,
+            netIncomePercentage: netIncomePercentage || 0,
             
-            const [expenses] = await db.execute(`
-                SELECT COALESCE(SUM(jed.debit_amount - jed.credit_amount), 0) as total
-                FROM journal_entry_details jed
-                JOIN journal_entries je ON jed.journal_entry_id = je.id
-                JOIN chart_of_accounts coa ON jed.account_id = coa.id
-                WHERE coa.account_type = 'expense'
-                  AND DATE(je.entry_date) BETWEEN ? AND ?
-                  AND je.status = 'posted'
-            `, [startDate, endDate]);
+            // Balance Sheet
+            cashBalance: cashBalance[0]?.total || 0,
+            customerBalances: customerBalances[0]?.total || 0,
+            inventoryValue: inventoryValue[0]?.total || 0,
+            totalAssets: totalAssets || 0,
+            supplierBalances: supplierBalances[0]?.total || 0,
+            totalLiabilities: totalLiabilities || 0,
+            totalEquity: totalEquity || 0,
             
-            reportData = {
-                revenue: revenue[0].total,
-                expenses: expenses[0].total,
-                netIncome: revenue[0].total - expenses[0].total
-            };
-        }
+            // Cash Flow
+            cashInflows: cashInflows[0]?.total || 0,
+            cashOutflows: cashOutflows[0]?.total || 0,
+            netCashFlow: (cashInflows[0]?.total || 0) - (cashOutflows[0]?.total || 0),
+            
+            // Financial Ratios
+            currentRatio: currentRatio || 0,
+            profitMargin: profitMargin || 0,
+            assetTurnover: assetTurnover || 0,
+            debtRatio: debtRatio || 0
+        };
         
         res.render('accounting/financial-reports', {
             title: 'حسابداری - گزارشات مالی پیشرفته',
             user: req.session.user,
-            reportType: reportType,
             startDate: startDate,
             endDate: endDate,
             reportData: reportData

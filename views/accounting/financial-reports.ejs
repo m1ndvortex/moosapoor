@@ -1,3 +1,17 @@
+<%
+// Safety check for reportData
+if (typeof reportData === 'undefined') {
+    reportData = {
+        salesRevenue: 0, purchaseRevenue: 0, totalRevenue: 0, totalExpenses: 0,
+        grossProfit: 0, netIncome: 0, salesPercentage: 0, purchasePercentage: 0,
+        netIncomePercentage: 0, cashBalance: 0, customerBalances: 0, inventoryValue: 0,
+        totalAssets: 0, supplierBalances: 0, totalLiabilities: 0, totalEquity: 0,
+        cashInflows: 0, cashOutflows: 0, netCashFlow: 0, currentRatio: 0,
+        profitMargin: 0, assetTurnover: 0, debtRatio: 0
+    };
+}
+%>
+
 <div class="page-header">
     <h1 class="page-title">گزارشات مالی پیشرفته</h1>
     <p>صورت‌های مالی، سود و زیان، ترازنامه و تحلیل‌های مالی</p>
@@ -38,7 +52,7 @@
     <div class="card">
         <div class="card-header">
             📊 صورت سود و زیان
-            <span class="float-left">برای سال منتهی به 1403/09/30</span>
+            <span class="float-left">از <%= startDate %> تا <%= endDate %></span>
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -57,25 +71,35 @@
                         </tr>
                         <tr>
                             <td>&nbsp;&nbsp;&nbsp;&nbsp;فروش طلا</td>
-                            <td style="text-align: left;">500,000,000</td>
-                            <td style="text-align: center;">95%</td>
+                            <td style="text-align: left;"><%= reportData.salesRevenue.toLocaleString('fa-IR') %></td>
+                            <td style="text-align: center;"><%= reportData.salesPercentage %>%</td>
                         </tr>
                         <tr>
-                            <td>&nbsp;&nbsp;&nbsp;&nbsp;سایر درآمدها</td>
-                            <td style="text-align: left;">25,000,000</td>
-                            <td style="text-align: center;">5%</td>
+                            <td>&nbsp;&nbsp;&nbsp;&nbsp;خرید طلا</td>
+                            <td style="text-align: left;"><%= reportData.purchaseRevenue.toLocaleString('fa-IR') %></td>
+                            <td style="text-align: center;"><%= reportData.purchasePercentage %>%</td>
                         </tr>
                         <tr style="font-weight: bold; background: #d4edda;">
                             <td><strong>مجموع درآمدها</strong></td>
-                            <td style="text-align: left;"><strong>525,000,000</strong></td>
+                            <td style="text-align: left;"><strong><%= reportData.totalRevenue.toLocaleString('fa-IR') %></strong></td>
                             <td style="text-align: center;"><strong>100%</strong></td>
+                        </tr>
+                        
+                        <!-- Expenses -->
+                        <tr style="background: #f8d7da;">
+                            <td colspan="3"><strong>هزینه‌ها</strong></td>
+                        </tr>
+                        <tr>
+                            <td>&nbsp;&nbsp;&nbsp;&nbsp;کل هزینه‌ها</td>
+                            <td style="text-align: left;"><%= reportData.totalExpenses.toLocaleString('fa-IR') %></td>
+                            <td style="text-align: center;">-</td>
                         </tr>
                         
                         <!-- Net Income -->
                         <tr style="font-weight: bold; background: #28a745; color: white; font-size: 1.1em;">
                             <td><strong>سود خالص</strong></td>
-                            <td style="text-align: left;"><strong>29,000,000</strong></td>
-                            <td style="text-align: center;"><strong>6%</strong></td>
+                            <td style="text-align: left;"><strong><%= reportData.netIncome.toLocaleString('fa-IR') %></strong></td>
+                            <td style="text-align: center;"><strong><%= reportData.netIncomePercentage %>%</strong></td>
                         </tr>
                     </tbody>
                 </table>
@@ -106,24 +130,20 @@
                                 <td colspan="2"><strong>دارایی‌های جاری</strong></td>
                             </tr>
                             <tr>
-                                <td>&nbsp;&nbsp;صندوق</td>
-                                <td style="text-align: left;">50,000,000</td>
-                            </tr>
-                            <tr>
-                                <td>&nbsp;&nbsp;بانک</td>
-                                <td style="text-align: left;">75,000,000</td>
+                                <td>&nbsp;&nbsp;صندوق و بانک</td>
+                                <td style="text-align: left;"><%= reportData.cashBalance.toLocaleString('fa-IR') %></td>
                             </tr>
                             <tr>
                                 <td>&nbsp;&nbsp;طلب مشتریان</td>
-                                <td style="text-align: left;">30,000,000</td>
+                                <td style="text-align: left;"><%= reportData.customerBalances.toLocaleString('fa-IR') %></td>
                             </tr>
                             <tr>
                                 <td>&nbsp;&nbsp;موجودی کالا</td>
-                                <td style="text-align: left;">120,000,000</td>
+                                <td style="text-align: left;"><%= reportData.inventoryValue.toLocaleString('fa-IR') %></td>
                             </tr>
                             <tr style="font-weight: bold; background: #d4edda;">
                                 <td><strong>جمع دارایی‌های جاری</strong></td>
-                                <td style="text-align: left;"><strong>275,000,000</strong></td>
+                                <td style="text-align: left;"><strong><%= reportData.totalAssets.toLocaleString('fa-IR') %></strong></td>
                             </tr>
                             
                             <tr style="height: 10px;">
@@ -148,7 +168,7 @@
                             
                             <tr style="font-weight: bold; background: #28a745; color: white;">
                                 <td><strong>مجموع دارایی‌ها</strong></td>
-                                <td style="text-align: left;"><strong>305,000,000</strong></td>
+                                <td style="text-align: left;"><strong><%= reportData.totalAssets.toLocaleString('fa-IR') %></strong></td>
                             </tr>
                         </tbody>
                     </table>
@@ -168,15 +188,11 @@
                             </tr>
                             <tr>
                                 <td>&nbsp;&nbsp;حساب‌های پرداختنی</td>
-                                <td style="text-align: left;">25,000,000</td>
-                            </tr>
-                            <tr>
-                                <td>&nbsp;&nbsp;حقوق پرداختنی</td>
-                                <td style="text-align: left;">8,000,000</td>
+                                <td style="text-align: left;"><%= reportData.supplierBalances.toLocaleString('fa-IR') %></td>
                             </tr>
                             <tr style="font-weight: bold; background: #f5c6cb;">
                                 <td><strong>جمع بدهی‌های جاری</strong></td>
-                                <td style="text-align: left;"><strong>33,000,000</strong></td>
+                                <td style="text-align: left;"><strong><%= reportData.totalLiabilities.toLocaleString('fa-IR') %></strong></td>
                             </tr>
                             
                             <tr style="height: 10px;">
@@ -187,25 +203,21 @@
                                 <td colspan="2"><strong>حقوق مالکانه</strong></td>
                             </tr>
                             <tr>
-                                <td>&nbsp;&nbsp;سرمایه</td>
-                                <td style="text-align: left;">200,000,000</td>
-                            </tr>
-                            <tr>
-                                <td>&nbsp;&nbsp;سود انباشته</td>
-                                <td style="text-align: left;">43,000,000</td>
+                                <td>&nbsp;&nbsp;حقوق مالکانه</td>
+                                <td style="text-align: left;"><%= reportData.totalEquity.toLocaleString('fa-IR') %></td>
                             </tr>
                             <tr>
                                 <td>&nbsp;&nbsp;سود سال جاری</td>
-                                <td style="text-align: left;">29,000,000</td>
+                                <td style="text-align: left;"><%= reportData.netIncome.toLocaleString('fa-IR') %></td>
                             </tr>
                             <tr style="font-weight: bold; background: #bee5eb;">
                                 <td><strong>جمع حقوق مالکانه</strong></td>
-                                <td style="text-align: left;"><strong>272,000,000</strong></td>
+                                <td style="text-align: left;"><strong><%= (reportData.totalEquity + reportData.netIncome).toLocaleString('fa-IR') %></strong></td>
                             </tr>
                             
                             <tr style="font-weight: bold; background: #17a2b8; color: white;">
                                 <td><strong>مجموع بدهی‌ها و حقوق</strong></td>
-                                <td style="text-align: left;"><strong>305,000,000</strong></td>
+                                <td style="text-align: left;"><strong><%= (reportData.totalLiabilities + reportData.totalEquity + reportData.netIncome).toLocaleString('fa-IR') %></strong></td>
                             </tr>
                         </tbody>
                     </table>
@@ -237,19 +249,15 @@
                         </tr>
                         <tr>
                             <td>&nbsp;&nbsp;وجه نقد دریافتی از مشتریان</td>
-                            <td style="text-align: left;">495,000,000</td>
-                        </tr>
-                        <tr>
-                            <td>&nbsp;&nbsp;وجه نقد پرداختی به تأمین‌کنندگان</td>
-                            <td style="text-align: left;">(380,000,000)</td>
+                            <td style="text-align: left;"><%= reportData.cashInflows.toLocaleString('fa-IR') %></td>
                         </tr>
                         <tr>
                             <td>&nbsp;&nbsp;وجه نقد پرداختی بابت هزینه‌ها</td>
-                            <td style="text-align: left;">(96,000,000)</td>
+                            <td style="text-align: left;">(<%= reportData.cashOutflows.toLocaleString('fa-IR') %>)</td>
                         </tr>
                         <tr style="font-weight: bold; background: #c3e6cb;">
                             <td><strong>خالص وجه نقد حاصل از فعالیت‌های عملیاتی</strong></td>
-                            <td style="text-align: left;"><strong>19,000,000</strong></td>
+                            <td style="text-align: left;"><strong><%= reportData.netCashFlow.toLocaleString('fa-IR') %></strong></td>
                         </tr>
                         
                         <tr style="height: 10px;">
@@ -320,20 +328,16 @@
                     <h6 style="color: #28a745; margin-bottom: 15px;">💰 نسبت‌های سودآوری</h6>
                     <table class="table table-sm">
                         <tr>
-                            <td>حاشیه سود ناخالص:</td>
-                            <td class="text-left"><strong>24%</strong></td>
-                        </tr>
-                        <tr>
                             <td>حاشیه سود خالص:</td>
-                            <td class="text-left"><strong>6%</strong></td>
+                            <td class="text-left"><strong><%= reportData.profitMargin %>%</strong></td>
                         </tr>
                         <tr>
-                            <td>بازده دارایی‌ها:</td>
-                            <td class="text-left"><strong>9.5%</strong></td>
+                            <td>گردش دارایی‌ها:</td>
+                            <td class="text-left"><strong><%= reportData.assetTurnover %></strong></td>
                         </tr>
                         <tr>
-                            <td>بازده حقوق مالکانه:</td>
-                            <td class="text-left"><strong>10.7%</strong></td>
+                            <td>نسبت بدهی:</td>
+                            <td class="text-left"><strong><%= reportData.debtRatio %>%</strong></td>
                         </tr>
                     </table>
                 </div>
@@ -344,19 +348,15 @@
                     <table class="table table-sm">
                         <tr>
                             <td>نسبت جاری:</td>
-                            <td class="text-left"><strong>8.3</strong></td>
+                            <td class="text-left"><strong><%= reportData.currentRatio %></strong></td>
                         </tr>
                         <tr>
-                            <td>نسبت سریع:</td>
-                            <td class="text-left"><strong>4.7</strong></td>
+                            <td>مجموع دارایی‌ها:</td>
+                            <td class="text-left"><strong><%= reportData.totalAssets.toLocaleString('fa-IR') %></strong></td>
                         </tr>
                         <tr>
-                            <td>نسبت نقدی:</td>
-                            <td class="text-left"><strong>3.8</strong></td>
-                        </tr>
-                        <tr>
-                            <td>وجه نقد به دارایی‌ها:</td>
-                            <td class="text-left"><strong>41%</strong></td>
+                            <td>موجودی نقد:</td>
+                            <td class="text-left"><strong><%= reportData.cashBalance.toLocaleString('fa-IR') %></strong></td>
                         </tr>
                     </table>
                 </div>
@@ -427,6 +427,14 @@
 </div>
 
 <script>
+// Helper function to safely format numbers
+function formatNumber(num) {
+    if (typeof num === 'undefined' || num === null || isNaN(num)) {
+        return '0';
+    }
+    return Number(num).toLocaleString('fa-IR');
+}
+
 function showReport(reportType) {
     // Hide all reports
     document.querySelectorAll('.report-section').forEach(section => {

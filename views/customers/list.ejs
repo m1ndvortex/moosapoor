@@ -51,6 +51,15 @@
         </div>
         <div class="stat-trend">📈</div>
     </div>
+    
+    <div class="stat-card gold-balance">
+        <div class="stat-icon">🥇</div>
+        <div class="stat-content">
+            <div class="stat-number"><%= customers.filter(c => c.gold_balance_grams && Math.abs(c.gold_balance_grams) > 0).length %></div>
+            <div class="stat-label">دارای موجودی طلا</div>
+        </div>
+        <div class="stat-trend">⚖️</div>
+    </div>
 </div>
 
 <!-- Advanced Search & Filters -->
@@ -103,6 +112,18 @@
                 </select>
             </div>
         </div>
+        
+        <div class="search-item">
+            <label>موجودی طلا</label>
+            <div class="select-group">
+                <select id="goldBalanceFilter">
+                    <option value="">همه</option>
+                    <option value="positive">🟢 بستانکار (موجودی مثبت)</option>
+                    <option value="negative">🔴 بدهکار (موجودی منفی)</option>
+                    <option value="zero">⚪ بدون موجودی</option>
+                </select>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -126,6 +147,7 @@
                     <th>کل خرید (ریال)</th>
                     <th>کل پرداخت (ریال)</th>
                     <th>مانده حساب (ریال)</th>
+                    <th>موجودی طلا (گرم)</th>
                     <th>وضعیت</th>
                     <th>عملیات</th>
                 </tr>
@@ -211,6 +233,21 @@
                                     </span>
                                 <% } else { %>
                                     <span class="amount-zero">0</span>
+                                <% } %>
+                            </td>
+                            
+                            <!-- موجودی طلا -->
+                            <td class="gold-balance-cell">
+                                <% if (customer.gold_balance_grams && customer.gold_balance_grams > 0) { %>
+                                    <span class="gold-credit">
+                                        +<%= Number(customer.gold_balance_grams).toLocaleString('fa-IR', {minimumFractionDigits: 3, maximumFractionDigits: 3}) %>
+                                    </span>
+                                <% } else if (customer.gold_balance_grams && customer.gold_balance_grams < 0) { %>
+                                    <span class="gold-debit">
+                                        <%= Number(customer.gold_balance_grams).toLocaleString('fa-IR', {minimumFractionDigits: 3, maximumFractionDigits: 3}) %>
+                                    </span>
+                                <% } else { %>
+                                    <span class="gold-zero">0.000</span>
                                 <% } %>
                             </td>
                             
@@ -363,6 +400,7 @@ body {
 .stat-card.active::before { background: linear-gradient(90deg, #00b894, #00a085); }
 .stat-card.vip::before { background: linear-gradient(90deg, #fdcb6e, #e17055); }
 .stat-card.debtor::before { background: linear-gradient(90deg, #e84393, #fd79a8); }
+.stat-card.gold-balance::before { background: linear-gradient(90deg, #f39c12, #d35400); }
 
 .stat-card:hover {
     transform: translateY(-5px);
@@ -589,6 +627,52 @@ body {
     color: #28a745;
     font-weight: bold;
     font-size: 1.1em;
+}
+
+/* =================== GOLD BALANCE STYLES =================== */
+.gold-balance-cell {
+    text-align: center;
+    font-family: 'Vazir', sans-serif;
+    vertical-align: middle;
+}
+
+.gold-credit {
+    color: #28a745;
+    font-weight: bold;
+    font-size: 1em;
+    background: linear-gradient(135deg, #d4edda, #c3e6cb);
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 2px solid #28a745;
+    display: inline-block;
+    min-width: 80px;
+    text-align: center;
+}
+
+.gold-debit {
+    color: #dc3545;
+    font-weight: bold;
+    font-size: 1em;
+    background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 2px solid #dc3545;
+    display: inline-block;
+    min-width: 80px;
+    text-align: center;
+}
+
+.gold-zero {
+    color: #6c757d;
+    font-weight: normal;
+    font-size: 0.9em;
+    background: #f8f9fa;
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 2px solid #dee2e6;
+    display: inline-block;
+    min-width: 80px;
+    text-align: center;
 }
 
 .amount-zero {
@@ -863,6 +947,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const phoneValue = phoneSearch.value.toLowerCase().trim();
         const typeValue = typeFilter.value;
         const statusValue = statusFilter.value;
+        const goldBalanceValue = goldBalanceFilter.value;
         
         const rows = tableBody.querySelectorAll('.customer-row');
         let visibleCount = 0;
@@ -901,6 +986,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 showRow = false;
             }
 
+            // فیلتر موجودی طلا
+            if (goldBalanceValue) {
+                const goldBalanceCell = row.querySelector('.gold-balance-cell');
+                if (goldBalanceCell) {
+                    const hasPositive = goldBalanceCell.querySelector('.gold-credit');
+                    const hasNegative = goldBalanceCell.querySelector('.gold-debit');
+                    const hasZero = goldBalanceCell.querySelector('.gold-zero');
+                    
+                    if (goldBalanceValue === 'positive' && !hasPositive) {
+                        showRow = false;
+                    } else if (goldBalanceValue === 'negative' && !hasNegative) {
+                        showRow = false;
+                    } else if (goldBalanceValue === 'zero' && !hasZero) {
+                        showRow = false;
+                    }
+                }
+            }
+
             row.style.display = showRow ? '' : 'none';
             if (showRow) visibleCount++;
         });
@@ -914,6 +1017,9 @@ document.addEventListener('DOMContentLoaded', function() {
     phoneSearch.addEventListener('input', filterTable);
     typeFilter.addEventListener('change', filterTable);
     statusFilter.addEventListener('change', filterTable);
+    
+    const goldBalanceFilter = document.getElementById('goldBalanceFilter');
+    goldBalanceFilter.addEventListener('change', filterTable);
 
     // تابع پاک کردن فیلترها
     window.clearAllFilters = function() {
@@ -921,6 +1027,7 @@ document.addEventListener('DOMContentLoaded', function() {
         phoneSearch.value = '';
         typeFilter.value = '';
         statusFilter.value = '';
+        goldBalanceFilter.value = '';
         filterTable();
         
         // انیمیشن موفقیت

@@ -440,7 +440,7 @@
                 <%= goldSummary.balance > 0 ? '💰' : goldSummary.balance < 0 ? '⚠️' : '⚖️' %>
             </div>
             <div class="gold-balance-amount">
-                <%= Math.abs(goldSummary.balance).toFixed(3) %>
+                <%= Number(goldSummary.balance || 0).toFixed(3) %>
             </div>
             <div class="gold-balance-unit">گرم</div>
             <div class="gold-balance-status">
