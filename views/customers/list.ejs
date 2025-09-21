@@ -136,22 +136,24 @@
         </div>
     </div>
     
-    <div class="table-container">
-        <table id="customersTable">
-            <thead>
-                <tr>
-                    <th>وضعیت</th>
-                    <th>کد مشتری</th>
-                    <th>نام مشتری</th>
-                    <th>تلفن</th>
-                    <th>کل خرید (ریال)</th>
-                    <th>کل پرداخت (ریال)</th>
-                    <th>مانده حساب (ریال)</th>
-                    <th>موجودی طلا (گرم)</th>
-                    <th>وضعیت</th>
-                    <th>عملیات</th>
-                </tr>
-            </thead>
+    <!-- Desktop/Tablet Table View -->
+    <div class="table-view">
+        <div class="table-container">
+            <table id="customersTable">
+                <thead>
+                    <tr>
+                        <th>وضعیت</th>
+                        <th>کد مشتری</th>
+                        <th>نام مشتری</th>
+                        <th>تلفن</th>
+                        <th class="hide-tablet">کل خرید (ریال)</th>
+                        <th class="hide-tablet">کل پرداخت (ریال)</th>
+                        <th>مانده حساب (ریال)</th>
+                        <th class="hide-tablet">موجودی طلا (گرم)</th>
+                        <th>وضعیت</th>
+                        <th>عملیات</th>
+                    </tr>
+                </thead>
             <tbody>
                 <% if (customers && customers.length > 0) { %>
                     <% customers.forEach(customer => { %>
@@ -200,7 +202,7 @@
                             </td>
                             
                             <!-- کل خرید -->
-                            <td class="purchases-cell">
+                            <td class="purchases-cell hide-tablet">
                                 <% if (customer.total_purchases && customer.total_purchases > 0) { %>
                                     <span class="amount-positive">
                                         <%= Number(customer.total_purchases).toLocaleString() %>
@@ -211,7 +213,7 @@
                             </td>
                             
                             <!-- کل پرداخت -->
-                            <td class="payments-cell">
+                            <td class="payments-cell hide-tablet">
                                 <% if (customer.total_payments && customer.total_payments > 0) { %>
                                     <span class="amount-positive">
                                         <%= Number(customer.total_payments).toLocaleString() %>
@@ -237,7 +239,7 @@
                             </td>
                             
                             <!-- موجودی طلا -->
-                            <td class="gold-balance-cell">
+                            <td class="gold-balance-cell hide-tablet">
                                 <% if (customer.gold_balance_grams && customer.gold_balance_grams > 0) { %>
                                     <span class="gold-credit">
                                         +<%= Number(customer.gold_balance_grams).toLocaleString('fa-IR', {minimumFractionDigits: 3, maximumFractionDigits: 3}) %>
@@ -297,6 +299,125 @@
                 <% } %>
             </tbody>
         </table>
+        </div>
+    </div>
+    
+    <!-- Mobile Card View -->
+    <div class="card-view">
+        <div class="customers-cards">
+            <% if (customers && customers.length > 0) { %>
+                <% customers.forEach(customer => { %>
+                    <div class="customer-card <%= customer.customer_type === 'vip' ? 'vip' : '' %> <%= !customer.is_active ? 'inactive' : '' %>"
+                         data-type="<%= customer.customer_type || 'normal' %>" 
+                         data-status="<%= customer.is_active ? 'active' : 'inactive' %>">
+                        
+                        <div class="card-header">
+                            <div class="card-title">
+                                <div class="card-customer-name"><%= customer.full_name %></div>
+                                <div class="card-customer-code"><%= customer.customer_code %></div>
+                            </div>
+                            <div class="card-badges">
+                                <% if (customer.is_active) { %>
+                                    <span class="badge active">فعال</span>
+                                <% } else { %>
+                                    <span class="badge inactive">غیرفعال</span>
+                                <% } %>
+                                <% if (customer.customer_type === 'vip') { %>
+                                    <span class="badge vip">VIP</span>
+                                <% } %>
+                            </div>
+                        </div>
+                        
+                        <div class="card-content">
+                            <div class="card-info-group">
+                                <div class="card-info-item">
+                                    <span class="card-info-icon">📱</span>
+                                    <span class="card-info-label">تلفن:</span>
+                                    <span class="card-info-value">
+                                        <%= customer.phone || 'ثبت نشده' %>
+                                    </span>
+                                </div>
+                                <% if (customer.national_id) { %>
+                                <div class="card-info-item">
+                                    <span class="card-info-icon">🆔</span>
+                                    <span class="card-info-label">کد ملی:</span>
+                                    <span class="card-info-value"><%= customer.national_id %></span>
+                                </div>
+                                <% } %>
+                            </div>
+                            <div class="card-info-group">
+                                <div class="card-info-item">
+                                    <span class="card-info-icon">💰</span>
+                                    <span class="card-info-label">وضعیت:</span>
+                                    <span class="card-info-value">
+                                        <% if (customer.current_balance > 0) { %>
+                                            <span class="badge debt">بدهکار</span>
+                                        <% } else if (customer.current_balance < 0) { %>
+                                            <span class="badge credit">بستانکار</span>
+                                        <% } else { %>
+                                            <span class="badge clear">تسویه</span>
+                                        <% } %>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card-financial">
+                            <div class="card-financial-title">💰 اطلاعات مالی</div>
+                            <div class="card-financial-grid">
+                                <div class="card-financial-item">
+                                    <div class="card-financial-label">کل خرید</div>
+                                    <div class="card-financial-value <%= customer.total_purchases > 0 ? 'positive' : 'zero' %>">
+                                        <%= customer.total_purchases ? Number(customer.total_purchases).toLocaleString() : '0' %>
+                                    </div>
+                                </div>
+                                <div class="card-financial-item">
+                                    <div class="card-financial-label">کل پرداخت</div>
+                                    <div class="card-financial-value <%= customer.total_payments > 0 ? 'positive' : 'zero' %>">
+                                        <%= customer.total_payments ? Number(customer.total_payments).toLocaleString() : '0' %>
+                                    </div>
+                                </div>
+                                <div class="card-financial-item">
+                                    <div class="card-financial-label">مانده حساب</div>
+                                    <div class="card-financial-value <%= customer.current_balance > 0 ? 'negative' : customer.current_balance < 0 ? 'positive' : 'zero' %>">
+                                        <%= Number(Math.abs(customer.current_balance || 0)).toLocaleString() %>
+                                    </div>
+                                </div>
+                                <div class="card-financial-item">
+                                    <div class="card-financial-label">موجودی طلا</div>
+                                    <div class="card-financial-value <%= customer.gold_balance_grams > 0 ? 'positive' : customer.gold_balance_grams < 0 ? 'negative' : 'zero' %>">
+                                        <%= customer.gold_balance_grams ? Number(customer.gold_balance_grams).toLocaleString('fa-IR', {minimumFractionDigits: 3, maximumFractionDigits: 3}) : '0.000' %>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card-actions">
+                            <a href="/customers/view/<%= customer.id %>" class="card-action-btn view">
+                                👁️ مشاهده
+                            </a>
+                            <a href="/customers/edit/<%= customer.id %>" class="card-action-btn edit">
+                                ✏️ ویرایش
+                            </a>
+                            <a href="/accounting/customer-detail/<%= customer.id %>" class="card-action-btn financial">
+                                💰 حساب
+                            </a>
+                            <button class="card-action-btn delete" 
+                                    onclick="deleteCustomer(<%= customer.id %>, '<%= customer.full_name %>')">
+                                🗑️ حذف
+                            </button>
+                        </div>
+                    </div>
+                <% }) %>
+            <% } else { %>
+                <div class="empty-state">
+                    <div class="empty-icon">😔</div>
+                    <div class="empty-title">هیچ مشتری ثبت نشده است</div>
+                    <div class="empty-description">برای شروع، اولین مشتری خود را اضافه کنید</div>
+                    <a href="/customers/add" class="btn-primary">➕ افزودن مشتری جدید</a>
+                </div>
+            <% } %>
+        </div>
     </div>
 </div>
 
@@ -856,6 +977,34 @@ body {
 }
 
 /* =================== RESPONSIVE DESIGN =================== */
+
+/* Desktop Table (Default) */
+.table-view {
+    display: block;
+}
+
+.card-view {
+    display: none;
+}
+
+/* Responsive table adjustments for tablet */
+@media (max-width: 1200px) {
+    #customersTable {
+        font-size: 0.85em;
+    }
+    
+    #customersTable th,
+    #customersTable td {
+        padding: 12px 8px;
+    }
+    
+    /* Hide less important columns on tablets */
+    .hide-tablet {
+        display: none;
+    }
+}
+
+/* Mobile responsive (768px and below) */
 @media (max-width: 768px) {
     body {
         padding: 10px;
@@ -875,16 +1024,16 @@ body {
     }
     
     .stats-dashboard {
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 15px;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
     }
     
     .stat-card {
-        padding: 20px;
+        padding: 15px;
     }
     
     .stat-number {
-        font-size: 2em;
+        font-size: 1.8em;
     }
     
     .search-container {
@@ -909,24 +1058,231 @@ body {
         text-align: center;
     }
     
-    #customersTable {
-        font-size: 0.8em;
+    /* Hide table view and show card view on mobile */
+    .table-view {
+        display: none;
     }
     
-    #customersTable th,
-    #customersTable td {
-        padding: 10px 8px;
+    .card-view {
+        display: block;
+    }
+}
+
+/* Card View Styles for Mobile */
+.customers-cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+    padding: 20px;
+}
+
+.customer-card {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+    border-left: 5px solid #667eea;
+    transition: all 0.3s ease;
+}
+
+.customer-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.customer-card.vip {
+    border-left-color: #fdcb6e;
+    background: linear-gradient(135deg, #fff9c4 0%, #fcf7e8 100%);
+}
+
+.customer-card.inactive {
+    opacity: 0.7;
+    border-left-color: #ddd;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.card-title {
+    flex: 1;
+    min-width: 0;
+}
+
+.card-customer-name {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #2d3436;
+    margin-bottom: 5px;
+    word-break: break-word;
+}
+
+.card-customer-code {
+    font-size: 0.9em;
+    color: #667eea;
+    font-weight: 600;
+}
+
+.card-badges {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.card-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.card-info-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.card-info-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9em;
+}
+
+.card-info-icon {
+    font-size: 1.1em;
+    width: 20px;
+    text-align: center;
+}
+
+.card-info-label {
+    color: #636e72;
+    font-weight: 500;
+    min-width: 60px;
+}
+
+.card-info-value {
+    color: #2d3436;
+    font-weight: 600;
+    flex: 1;
+    word-break: break-word;
+}
+
+.card-financial {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.card-financial-title {
+    font-size: 0.9em;
+    color: #636e72;
+    margin-bottom: 10px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.card-financial-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 10px;
+    text-align: center;
+}
+
+.card-financial-item {
+    background: white;
+    border-radius: 8px;
+    padding: 10px 5px;
+}
+
+.card-financial-label {
+    font-size: 0.7em;
+    color: #636e72;
+    margin-bottom: 3px;
+    line-height: 1.2;
+}
+
+.card-financial-value {
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
+.card-financial-value.positive {
+    color: #28a745;
+}
+
+.card-financial-value.negative {
+    color: #dc3545;
+}
+
+.card-financial-value.zero {
+    color: #6c757d;
+}
+
+.card-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.card-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    font-size: 0.85em;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    gap: 5px;
+    min-width: 70px;
+}
+
+.card-action-btn.view { background: #74b9ff; color: white; }
+.card-action-btn.edit { background: #a29bfe; color: white; }
+.card-action-btn.financial { background: #00b894; color: white; }
+.card-action-btn.delete { background: #ff7675; color: white; }
+
+.card-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    color: white;
+    text-decoration: none;
+}
+
+/* Additional responsive table improvements */
+@media (max-width: 1024px) and (min-width: 769px) {
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
     
-    .action-buttons {
-        flex-direction: column;
-        gap: 5px;
+    .table-container::-webkit-scrollbar {
+        height: 8px;
     }
     
-    .action-btn {
-        width: 30px;
-        height: 30px;
-        font-size: 12px;
+    .table-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    
+    .table-container::-webkit-scrollbar-thumb {
+        background: #667eea;
+        border-radius: 10px;
+    }
+    
+    .table-container::-webkit-scrollbar-thumb:hover {
+        background: #5a67d8;
     }
 }
 </style>
@@ -941,7 +1297,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const tableBody = document.querySelector('#customersTable tbody');
     const tableCount = document.getElementById('tableCount');
 
-    // تابع فیلتر کردن جدول
+    // تابع فیلتر کردن جدول و کارت‌ها
     function filterTable() {
         const nameValue = nameSearch.value.toLowerCase().trim();
         const phoneValue = phoneSearch.value.toLowerCase().trim();
@@ -949,12 +1305,17 @@ document.addEventListener('DOMContentLoaded', function() {
         const statusValue = statusFilter.value;
         const goldBalanceValue = goldBalanceFilter.value;
         
+        // فیلتر کردن ردیف‌های جدول
         const rows = tableBody.querySelectorAll('.customer-row');
+        // فیلتر کردن کارت‌های موبایل
+        const cards = document.querySelectorAll('.customer-card');
+        
         let visibleCount = 0;
 
+        // فیلتر ردیف‌های جدول
         rows.forEach(row => {
-            const nameCell = row.querySelector('.customer-info .name');
-            const phoneCell = row.querySelector('.contact-info .phone');
+            const nameCell = row.querySelector('.name-cell .name');
+            const phoneCell = row.querySelector('.phone-cell');
             const type = row.getAttribute('data-type');
             const status = row.getAttribute('data-status');
 
@@ -1006,6 +1367,41 @@ document.addEventListener('DOMContentLoaded', function() {
 
             row.style.display = showRow ? '' : 'none';
             if (showRow) visibleCount++;
+        });
+
+        // فیلتر کارت‌های موبایل
+        cards.forEach(card => {
+            const nameCell = card.querySelector('.card-customer-name');
+            const phoneValue = card.querySelector('.card-info-value').textContent.toLowerCase();
+            const type = card.getAttribute('data-type');
+            const status = card.getAttribute('data-status');
+
+            let showCard = true;
+
+            // فیلتر نام
+            if (nameValue && nameCell) {
+                const nameText = nameCell.textContent.toLowerCase();
+                if (!nameText.includes(nameValue)) {
+                    showCard = false;
+                }
+            }
+
+            // فیلتر تلفن
+            if (phoneValue && !phoneValue.includes(phoneSearch.value.toLowerCase().trim())) {
+                showCard = false;
+            }
+
+            // فیلتر نوع
+            if (typeValue && type !== typeValue) {
+                showCard = false;
+            }
+
+            // فیلتر وضعیت
+            if (statusValue && status !== statusValue) {
+                showCard = false;
+            }
+
+            card.style.display = showCard ? '' : 'none';
         });
 
         // به‌روزرسانی شمارنده
@@ -1182,6 +1578,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<!-- Scripts for Jalali Calendar -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/moment-jalaali/0.9.6/moment-jalaali.min.js"></script> 
+<!-- Scripts for Jalali Calendar are loaded in layout.ejs --> 
