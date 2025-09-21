@@ -3428,6 +3428,7 @@ app.get('/accounting/customer-detail/:id', requireAuth, async (req, res) => {
         // دریافت تراکنش‌های طلا
         const goldTransactions = await GoldTransactionDB.getByCustomer(customerId, {
             limit: 50, // محدود کردن به 50 تراکنش اخیر
+            offset: 0, // شروع از ابتدا
             orderBy: 'transaction_date',
             orderDirection: 'DESC'
         });

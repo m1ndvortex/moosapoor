@@ -109,25 +109,40 @@ class GoldTransactionDB {
             orderDirection = 'DESC'
         } = options;
 
+        // Validate customerId
+        if (!customerId || isNaN(parseInt(customerId))) {
+            throw new Error('شناسه مشتری نامعتبر است');
+        }
+
+        // Validate and sanitize orderBy to prevent SQL injection
+        const allowedOrderFields = ['transaction_date', 'amount_grams', 'transaction_type', 'id', 'created_at'];
+        const safeOrderBy = allowedOrderFields.includes(orderBy) ? orderBy : 'transaction_date';
+        const safeOrderDirection = ['ASC', 'DESC'].includes(orderDirection.toUpperCase()) ? orderDirection.toUpperCase() : 'DESC';
+
         let query = `
             SELECT t.*, u.username as created_by_username
             FROM customer_gold_transactions t
             LEFT JOIN users u ON t.created_by = u.id
             WHERE t.customer_id = ?
-            ORDER BY t.${orderBy} ${orderDirection}, t.id ${orderDirection}
+            ORDER BY t.${safeOrderBy} ${safeOrderDirection}, t.id ${safeOrderDirection}
         `;
 
-        const params = [customerId];
+        const params = [parseInt(customerId)];
 
-        if (limit) {
+        // Handle limit and offset with proper validation
+        if (limit && !isNaN(parseInt(limit)) && parseInt(limit) > 0) {
+            const limitNum = parseInt(limit);
+            const offsetNum = parseInt(offset) || 0;
+            
             query += ' LIMIT ? OFFSET ?';
-            params.push(limit, offset);
+            params.push(limitNum, offsetNum);
         }
 
         try {
             const [rows] = await db.execute(query, params);
             return rows;
         } catch (error) {
+            console.error('Customer gold transactions error:', error);
             throw error;
         }
     }
