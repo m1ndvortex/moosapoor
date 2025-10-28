@@ -120,6 +120,7 @@ services:
   certbot:
     image: certbot/certbot
     container_name: goldshop_certbot
+    restart: unless-stopped
     volumes:
       - certbot_data:/etc/letsencrypt
       - certbot_www:/var/www/certbot
