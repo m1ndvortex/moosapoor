@@ -1751,6 +1751,74 @@ app.delete('/sales/delete/:id', requireAuth, async (req, res) => {
 
 // ==================== GOLD TRANSACTIONS API ROUTES ====================
 
+// GET /customers/gold-transaction/add/:id - Show form to add new gold transaction
+app.get('/customers/gold-transaction/add/:id', requireAuth, async (req, res) => {
+    try {
+        const customerId = req.params.id;
+        
+        // Get customer details
+        const [customers] = await db.execute(
+            'SELECT id, customer_code, full_name, gold_balance_grams FROM customers WHERE id = ?',
+            [customerId]
+        );
+        
+        if (customers.length === 0) {
+            return res.status(404).send('مشتری یافت نشد');
+        }
+        
+        const customer = customers[0];
+        
+        res.render('customers/gold-transaction-form', {
+            title: 'ثبت تراکنش طلا',
+            customer: customer,
+            user: req.session.user,
+            transaction: null, // null means it's a new transaction
+            mode: 'add'
+        });
+    } catch (error) {
+        console.error('Error loading gold transaction form:', error);
+        res.status(500).send('خطا در بارگذاری فرم');
+    }
+});
+
+// GET /customers/gold-transactions/:id - Show customer's gold transactions list
+app.get('/customers/gold-transactions/:id', requireAuth, async (req, res) => {
+    try {
+        const customerId = req.params.id;
+        
+        // Get customer details
+        const [customers] = await db.execute(
+            'SELECT id, customer_code, full_name, gold_balance_grams FROM customers WHERE id = ?',
+            [customerId]
+        );
+        
+        if (customers.length === 0) {
+            return res.status(404).send('مشتری یافت نشد');
+        }
+        
+        const customer = customers[0];
+        
+        // Get all gold transactions for this customer
+        const [transactions] = await db.execute(
+            `SELECT id, transaction_date, transaction_type, amount_grams, description, created_at 
+             FROM customer_gold_transactions 
+             WHERE customer_id = ? 
+             ORDER BY transaction_date DESC, created_at DESC`,
+            [customerId]
+        );
+        
+        res.render('customers/gold-transactions-list', {
+            title: 'تراکنش‌های طلای مشتری',
+            customer: customer,
+            transactions: transactions,
+            user: req.session.user
+        });
+    } catch (error) {
+        console.error('Error loading gold transactions:', error);
+        res.status(500).send('خطا در بارگذاری تراکنش‌ها');
+    }
+});
+
 // POST /customers/:id/gold-transactions - Create new gold transaction
 app.post('/customers/:id/gold-transactions', requireAuth, async (req, res) => {
     const startTime = Date.now();

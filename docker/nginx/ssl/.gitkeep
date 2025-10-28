@@ -1,0 +1,5 @@
+# SSL Directory
+# This directory will hold SSL certificates
+# It's mounted as read-only in the nginx container
+
+# Placeholder file - will be replaced by actual certificates

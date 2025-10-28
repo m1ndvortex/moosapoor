@@ -119,24 +119,16 @@ class GoldTransactionDB {
         const safeOrderBy = allowedOrderFields.includes(orderBy) ? orderBy : 'transaction_date';
         const safeOrderDirection = ['ASC', 'DESC'].includes(orderDirection.toUpperCase()) ? orderDirection.toUpperCase() : 'DESC';
 
-        let query = `
+        // Build query safely
+        const query = `
             SELECT t.*, u.username as created_by_username
             FROM customer_gold_transactions t
             LEFT JOIN users u ON t.created_by = u.id
             WHERE t.customer_id = ?
-            ORDER BY t.${safeOrderBy} ${safeOrderDirection}, t.id ${safeOrderDirection}
+            ORDER BY t.transaction_date DESC, t.id DESC
         `;
 
         const params = [parseInt(customerId)];
-
-        // Handle limit and offset with proper validation
-        if (limit && !isNaN(parseInt(limit)) && parseInt(limit) > 0) {
-            const limitNum = parseInt(limit);
-            const offsetNum = parseInt(offset) || 0;
-            
-            query += ' LIMIT ? OFFSET ?';
-            params.push(limitNum, offsetNum);
-        }
 
         try {
             const [rows] = await db.execute(query, params);

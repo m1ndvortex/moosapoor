@@ -391,6 +391,43 @@
             </div>
         </div>
 
+        <!-- مدیریت موجودی طلا (Gold Management) -->
+        <div class="info-card">
+            <div class="card-header">
+                <span class="icon">⚖️</span>
+                <h3>مدیریت موجودی طلا</h3>
+            </div>
+            <div class="info-item">
+                <span class="info-label">موجودی طلا:</span>
+                <span class="info-value">
+                    <% const goldBalance = Number(customer.gold_balance_grams || 0); %>
+                    <span style="color: <%= goldBalance >= 0 ? '#28a745' : '#dc3545' %>; font-weight: bold; font-size: 1.2em;">
+                        <%= goldBalance.toLocaleString('fa-IR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) %> گرم
+                    </span>
+                </span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">وضعیت:</span>
+                <span class="info-value">
+                    <% if (goldBalance > 0) { %>
+                        <span class="status-badge status-active">بستانکار (دارای طلا)</span>
+                    <% } else if (goldBalance < 0) { %>
+                        <span class="status-badge status-inactive">بدهکار (طلای قرضی)</span>
+                    <% } else { %>
+                        <span class="status-badge">بدون موجودی</span>
+                    <% } %>
+                </span>
+            </div>
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #f8f9fa;">
+                <a href="/customers/gold-transactions/<%= customer.id %>" class="btn btn-gold" style="display: inline-block; padding: 10px 20px; background: linear-gradient(135deg, #b8860b 0%, #daa520 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                    📊 مشاهده تراکنش‌های طلا
+                </a>
+                <a href="/customers/gold-transaction/add/<%= customer.id %>" class="btn btn-success" style="display: inline-block; padding: 10px 20px; background: #28a745; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; margin-right: 10px;">
+                    ➕ ثبت تراکنش طلا
+                </a>
+            </div>
+        </div>
+
         <!-- اطلاعات تکمیلی -->
         <div class="info-card">
             <div class="card-header">

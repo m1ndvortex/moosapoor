@@ -168,7 +168,7 @@ sudo nano /etc/nginx/sites-available/mosaporgold.ir
 ```nginx
 server {
     listen 80;
-    server_name mosaporgold.ir www.mosaporgold.ir 87.248.131.94;
+    server_name mosaporgold.ir www.mosaporgold.ir 45.156.186.85;
 
     # Redirect HTTP to HTTPS (بعد از نصب SSL)
     # return 301 https://$server_name$request_uri;

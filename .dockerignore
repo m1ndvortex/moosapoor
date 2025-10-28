@@ -1,0 +1,71 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Node modules (will be installed in container)
+node_modules
+npm-debug.log
+yarn-error.log
+package-lock.json
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE and Editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker files (no need to copy these into the image)
+Dockerfile
+docker-compose.yml
+.dockerignore
+docker/
+
+# Documentation (reduces image size)
+*.md
+README*.md
+GUIDE*.md
+INSTALLATION*.md
+BACKUP*.md
+
+# Test files
+test-*.js
+test-*.html
+*.test.js
+
+# Temporary files
+temp_uploads/*
+backups/*.sql
+
+# Database files
+*.sql
+database/*.sql
+
+# Log files
+*.log
+logs/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Backup and migration scripts (not needed in container)
+*-backup-*.js
+*-migration.js
+compare-database-*.js
+vps-*.sh
+add-*.sql
+fix-*.sql
+check-*.sql
+safe-restore-template.sql
+
+# Keep directory structure but exclude contents
+!temp_uploads/.gitkeep
+!backups/.gitkeep

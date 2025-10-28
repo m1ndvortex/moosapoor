@@ -1,0 +1,393 @@
+<style>
+.gold-transaction-form {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: 'Tahoma', sans-serif;
+    direction: rtl;
+}
+
+.page-header {
+    background: linear-gradient(135deg, #b8860b 0%, #daa520 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 15px;
+    margin-bottom: 30px;
+    text-align: center;
+    box-shadow: 0 8px 25px rgba(184, 134, 11, 0.3);
+}
+
+.page-header h1 {
+    margin: 0 0 10px 0;
+    font-size: 2em;
+    font-weight: bold;
+}
+
+.customer-info-box {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-right: 5px solid #b8860b;
+}
+
+.customer-info-box h3 {
+    color: #b8860b;
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.info-label {
+    font-weight: bold;
+    color: #666;
+}
+
+.info-value {
+    color: #333;
+}
+
+.gold-balance {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.gold-balance.positive {
+    color: #28a745;
+}
+
+.gold-balance.negative {
+    color: #dc3545;
+}
+
+.form-card {
+    background: white;
+    border-radius: 15px;
+    padding: 30px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.form-group {
+    margin-bottom: 25px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #333;
+    font-weight: 600;
+    font-size: 0.95em;
+}
+
+.form-group label .required {
+    color: #dc3545;
+    margin-right: 3px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1em;
+    transition: all 0.3s ease;
+    font-family: 'Tahoma', sans-serif;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #b8860b;
+    box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.1);
+}
+
+.form-control:disabled {
+    background: #f5f5f5;
+    cursor: not-allowed;
+}
+
+.transaction-type-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.type-button {
+    padding: 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    font-weight: 600;
+}
+
+.type-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.type-button.active {
+    border-color: #b8860b;
+    background: linear-gradient(135deg, #b8860b 0%, #daa520 100%);
+    color: white;
+}
+
+.type-button input[type="radio"] {
+    margin-left: 8px;
+}
+
+.button-group {
+    display: flex;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.btn {
+    padding: 12px 30px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #b8860b 0%, #daa520 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(184, 134, 11, 0.3);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.help-text {
+    font-size: 0.85em;
+    color: #666;
+    margin-top: 5px;
+}
+
+.alert {
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.alert-info {
+    background: #cfe2ff;
+    border: 1px solid #b6d4fe;
+    color: #084298;
+}
+
+@media (max-width: 768px) {
+    .transaction-type-buttons {
+        grid-template-columns: 1fr;
+    }
+    
+    .button-group {
+        flex-direction: column;
+    }
+}
+</style>
+
+<div class="gold-transaction-form">
+    <div class="page-header">
+        <h1>⚖️ <%= mode === 'add' ? 'ثبت تراکنش طلا' : 'ویرایش تراکنش طلا' %></h1>
+        <p>مدیریت موجودی طلای مشتری</p>
+    </div>
+
+    <!-- Customer Information -->
+    <div class="customer-info-box">
+        <h3>📋 اطلاعات مشتری</h3>
+        <div class="info-row">
+            <span class="info-label">نام مشتری:</span>
+            <span class="info-value"><%= customer.full_name %></span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">کد مشتری:</span>
+            <span class="info-value"><%= customer.customer_code %></span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">موجودی فعلی طلا:</span>
+            <span class="info-value">
+                <span class="gold-balance <%= customer.gold_balance_grams >= 0 ? 'positive' : 'negative' %>">
+                    <%= Number(customer.gold_balance_grams || 0).toLocaleString('fa-IR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) %> گرم
+                </span>
+            </span>
+        </div>
+    </div>
+
+    <% if (mode === 'add') { %>
+    <div class="alert alert-info">
+        <strong>📌 راهنما:</strong> برای ثبت تراکنش طلا، نوع تراکنش (بستانکار یا بدهکار)، مقدار و تاریخ را وارد کنید.
+    </div>
+    <% } %>
+
+    <!-- Transaction Form -->
+    <div class="form-card">
+        <form id="goldTransactionForm" method="POST" action="/customers/<%= customer.id %>/gold-transactions">
+            
+            <!-- Transaction Type -->
+            <div class="form-group">
+                <label>
+                    نوع تراکنش <span class="required">*</span>
+                </label>
+                <div class="transaction-type-buttons">
+                    <label class="type-button <%= !transaction || transaction.transaction_type === 'credit' ? 'active' : '' %>" id="creditButton">
+                        <input type="radio" name="transaction_type" value="credit" 
+                               <%= !transaction || transaction.transaction_type === 'credit' ? 'checked' : '' %> required>
+                        بستانکار (افزایش طلا) ➕
+                    </label>
+                    <label class="type-button <%= transaction && transaction.transaction_type === 'debit' ? 'active' : '' %>" id="debitButton">
+                        <input type="radio" name="transaction_type" value="debit" 
+                               <%= transaction && transaction.transaction_type === 'debit' ? 'checked' : '' %> required>
+                        بدهکار (کاهش طلا) ➖
+                    </label>
+                </div>
+                <p class="help-text">بستانکار: مشتری طلا به شما می‌دهد | بدهکار: مشتری طلا از شما می‌گیرد</p>
+            </div>
+
+            <!-- Amount -->
+            <div class="form-group">
+                <label for="amount_grams">
+                    مقدار (گرم) <span class="required">*</span>
+                </label>
+                <input type="text" 
+                       class="form-control" 
+                       id="amount_grams" 
+                       name="amount_grams" 
+                       value="<%= transaction ? transaction.amount_grams : '' %>"
+                       placeholder="مثال: 2.5 یا 10.125 یا 15.75"
+                       required
+                       pattern="^\d+(\.\d+)?$"
+                       title="لطفاً فقط عدد وارد کنید (مثال: 2.5 یا 10.125)">
+                <p class="help-text">مقدار را با هر تعداد رقم اعشار که نیاز دارید وارد کنید (مثال: 2.5, 10.125, 15.75)</p>
+            </div>
+
+            <!-- Transaction Date -->
+            <div class="form-group">
+                <label for="transaction_date">
+                    تاریخ تراکنش <span class="required">*</span>
+                </label>
+                <input type="date" 
+                       class="form-control" 
+                       id="transaction_date" 
+                       name="transaction_date" 
+                       value="<%= transaction ? transaction.transaction_date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0] %>"
+                       max="<%= new Date().toISOString().split('T')[0] %>"
+                       required>
+            </div>
+
+            <!-- Description -->
+            <div class="form-group">
+                <label for="description">
+                    توضیحات
+                </label>
+                <textarea class="form-control" 
+                          id="description" 
+                          name="description" 
+                          rows="4" 
+                          placeholder="توضیحات اضافی در مورد این تراکنش (اختیاری)"><%= transaction ? transaction.description || '' : '' %></textarea>
+            </div>
+
+            <!-- Buttons -->
+            <div class="button-group">
+                <button type="submit" class="btn btn-primary">
+                    💾 <%= mode === 'add' ? 'ثبت تراکنش' : 'ذخیره تغییرات' %>
+                </button>
+                <a href="/customers/view/<%= customer.id %>" class="btn btn-secondary">
+                    ❌ انصراف
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Toggle button active state
+document.querySelectorAll('.type-button').forEach(button => {
+    button.addEventListener('click', function() {
+        document.querySelectorAll('.type-button').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+    });
+});
+
+// Amount input validation - allow any decimal format
+const amountInput = document.getElementById('amount_grams');
+amountInput.addEventListener('input', function(e) {
+    // Remove any non-numeric characters except dot
+    let value = this.value.replace(/[^\d.]/g, '');
+    
+    // Allow only one decimal point
+    const parts = value.split('.');
+    if (parts.length > 2) {
+        value = parts[0] + '.' + parts.slice(1).join('');
+    }
+    
+    this.value = value;
+});
+
+// Form submission
+document.getElementById('goldTransactionForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    // Validate amount
+    const amount = parseFloat(amountInput.value);
+    if (isNaN(amount) || amount <= 0) {
+        alert('❌ لطفاً مقدار معتبری وارد کنید (باید عدد مثبت باشد)');
+        amountInput.focus();
+        return;
+    }
+    
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+    
+    try {
+        const response = await fetch(this.action, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ ' + result.message);
+            window.location.href = '/customers/view/<%= customer.id %>';
+        } else {
+            alert('❌ ' + result.message);
+            if (result.errors) {
+                result.errors.forEach(err => {
+                    console.error(err.field + ': ' + err.message);
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('خطا در ارسال اطلاعات');
+    }
+});
+</script>

@@ -1,0 +1,154 @@
+version: '3.8'
+
+services:
+  # MySQL Database Service
+  mysql:
+    image: mysql:8.0
+    container_name: goldshop_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-goldshop_root_2025}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-gold_shop_db}
+      MYSQL_USER: ${MYSQL_USER:-goldshop_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-goldshop_secure_pass}
+    volumes:
+      # Persistent database storage
+      - mysql_data:/var/lib/mysql
+      # Initialize database with your exported SQL
+      - ./last.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      # MySQL configuration for Persian/UTF8MB4
+      - ./docker/mysql/custom.cnf:/etc/mysql/conf.d/custom.cnf:ro
+    expose:
+      - "3306"
+    networks:
+      - goldshop_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-goldshop_root_2025}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  # Node.js Application Service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: goldshop_app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      # Database Configuration
+      DB_HOST: mysql
+      DB_USER: ${MYSQL_USER:-goldshop_user}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-goldshop_secure_pass}
+      DB_NAME: ${MYSQL_DATABASE:-gold_shop_db}
+      DB_PORT: 3306
+      
+      # Application Configuration
+      PORT: 3000
+      NODE_ENV: ${NODE_ENV:-production}
+      SESSION_SECRET: ${SESSION_SECRET:-change-this-secret-key-in-production}
+      
+      # Domain Configuration
+      BASE_URL: ${BASE_URL:-https://mosaporgold.ir}
+      
+      # Upload Configuration
+      UPLOAD_PATH: ./public/uploads
+      
+      # Puppeteer Configuration (for PDF generation)
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium-browser
+      PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
+    volumes:
+      # Persistent storage for uploads and backups
+      - uploads_data:/usr/src/app/public/uploads
+      - backups_data:/usr/src/app/backups
+      - temp_uploads_data:/usr/src/app/temp_uploads
+      
+      # Optional: Mount views and public for hot-reload in development
+      # Uncomment these for development mode
+      # - ./views:/usr/src/app/views
+      # - ./public/css:/usr/src/app/public/css
+      # - ./public/js:/usr/src/app/public/js
+    expose:
+      - "3000"
+    networks:
+      - goldshop_network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: goldshop_nginx
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    volumes:
+      # Nginx configuration
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      # SSL certificates (when using Let's Encrypt)
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - certbot_data:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+      # Static files (optional, for better performance)
+      - ./public/css:/var/www/html/css:ro
+      - ./public/js:/var/www/html/js:ro
+      - uploads_data:/var/www/html/uploads:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - goldshop_network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Certbot for SSL (Let's Encrypt)
+  certbot:
+    image: certbot/certbot
+    container_name: goldshop_certbot
+    volumes:
+      - certbot_data:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - goldshop_network
+
+# Docker Networks
+networks:
+  goldshop_network:
+    driver: bridge
+
+# Docker Volumes for Data Persistence
+volumes:
+  mysql_data:
+    driver: local
+    name: goldshop_mysql_data
+  uploads_data:
+    driver: local
+    name: goldshop_uploads
+  backups_data:
+    driver: local
+    name: goldshop_backups
+  temp_uploads_data:
+    driver: local
+    name: goldshop_temp_uploads
+  certbot_data:
+    driver: local
+    name: goldshop_certbot_data
+  certbot_www:
+    driver: local
+    name: goldshop_certbot_www
